@@ -19,7 +19,13 @@ autoFixEFI -DriveLetter:K
 irm bit.ly/3EQwFzs|iex; autoFixEFI K
 ```
 
+
+
+</br></br></br>
+
 ## MBR
+![](img/autoFixMBR.png)
+
 ```
 irm "https://raw.githubusercontent.com/hunandy14/autoFixEFI/master/autoFixMBR.ps1" | iex
 autoFixMBR -DriveLetter:K
