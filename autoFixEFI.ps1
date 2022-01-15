@@ -3,13 +3,18 @@ function autoFixEFI {
         [Parameter(Position = 0, ParameterSetName = "", Mandatory=$true)]
         [string] $DriveLetter
     )
+    $Dri=(Get-Partition -DriveLetter:$DriveLetter)
+    
+    if (!$Dri) { Write-Host "錯誤::請輸入正確的磁碟代號"; return}
+    if (($Dri|Get-Disk).PartitionStyle -ne "GPT") {
+        Write-Host "錯誤::該分區的磁碟為 MBR 非 GPT 格式"; return }
+    
     $EfiSize     = (300MB + 8)
     $response    = ""
     $DriveLetter = $DriveLetter.Trim(":")
     $EFI_ID      = "{c12a7328-f81f-11d2-ba4b-00a0c93ec93b}"
     $EFI_Letter  = "X"
     
-    $Dri=(Get-Partition -DriveLetter:$DriveLetter)
     $Partition = Get-Partition -DiskNumber:$Dri.DiskNumber
     $EFI = $Partition|Where-Object{$_.GptType -eq $EFI_ID}
     
