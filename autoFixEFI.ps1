@@ -25,8 +25,10 @@ function autoFixEFI {
         Write-Host "該磁碟沒有EFI分區，即將從" -NoNewline
         Write-Host " ($($DriveLetter):) " -ForegroundColor:Yellow -NoNewline
         Write-Host "壓縮300M並建立EFI分區" 
-        $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) ";
-        if ($response -ne "Y" -or $response -ne "Y" -or $Force) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
+        if (!$Force) {
+            $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) ";
+            if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
+        }
         $Dri|Resize-Partition -Size:($Dri.size-$EfiSize)
         $EFI = (($Dri|New-Partition -Size:($EfiSize) -GptType:$EFI_ID)|Format-Volume)|Get-Partition
     }
@@ -38,9 +40,10 @@ function autoFixEFI {
     Write-Host "的啟動引導, " -NoNewline
     Write-Host "寫入EFI分區" -NoNewline
     Write-Host " (磁碟:$($EFI.DiskNumber), 分區:$($EFI.PartitionNumber)) " -ForegroundColor:Yellow
-    $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) "
-    if (($response -ne "Y") -or ($response -ne "Y" -or $Force)) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
-    
+    if (!$Force) {
+        $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) "
+        if (($response -ne "Y") -or ($response -ne "Y")) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
+    }
     # 新增EFI磁碟代號
     if(!$EFI.DriveLetter){ $EFI|Set-Partition -NewDriveLetter:$EFI_Letter; $EFI=$EFI|Get-Partition; }
     # 重建EFI開機引導
