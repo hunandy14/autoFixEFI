@@ -5,8 +5,7 @@
 
 ## EFI 和 MBR 自動選擇
 ```
-irm "https://raw.githubusercontent.com/hunandy14/autoFixEFI/master/autoFixBoot.ps1" | iex
-autoFixBoot -DriveLetter:K
+irm bit.ly/340Pi6W|iex; autoFixBoot E
 ```
 
 
