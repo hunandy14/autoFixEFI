@@ -4,6 +4,8 @@
 打開終端機：按下 `Win+X` 然後再按下 `A`   
 
 ## EFI 和 MBR 自動選擇
+![](img/autoFixBoot-MBR.png)
+
 ```
 irm bit.ly/340Pi6W|iex; autoFixBoot E
 ```
