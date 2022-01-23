@@ -1,7 +1,8 @@
 function autoFixMBR {
     param (
         [Parameter(Position = 0, ParameterSetName = "", Mandatory=$true)]
-        [string] $DriveLetter
+        [string] $DriveLetter,
+        [switch] $Force
     )
     $Dri=(Get-Partition -DriveLetter:$DriveLetter)
     if (!$Dri) { Write-Host "錯誤::請輸入正確的磁碟代號"; return}
@@ -26,8 +27,10 @@ function autoFixMBR {
     Write-Host "的啟動引導, " -NoNewline
     Write-Host "寫入MBR引導分區" -NoNewline
     Write-Host " (磁碟:$($Active.DiskNumber), 分區:$($Active.PartitionNumber)) " -ForegroundColor:Yellow
-    $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) "
-    if (($response -ne "Y") -or ($response -ne "Y")) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
+    if (!$Force) {
+        $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) "
+        if (($response -ne "Y") -or ($response -ne "Y")) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
+    }
     # 新增Active磁碟代號
     if(!$Active.DriveLetter){ $Active|Set-Partition -NewDriveLetter:$MBR_Letter; $Active=$Active|Get-Partition; }
     # 重建MBR開機引導
