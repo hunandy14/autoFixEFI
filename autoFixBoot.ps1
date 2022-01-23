@@ -1,7 +1,4 @@
 
-irm "https://raw.githubusercontent.com/hunandy14/autoFixEFI/master/autoFixEFI.ps1"|iex
-irm "https://raw.githubusercontent.com/hunandy14/autoFixEFI/master/autoFixMBR.ps1"|iex
-
 function autoFixBoot {
     param (
         [Parameter(Position = 0, ParameterSetName = "", Mandatory=$true)]
@@ -13,8 +10,10 @@ function autoFixBoot {
     # 修復引導
     $Boot = ($Dri|Get-Disk).PartitionStyle
     if ($Boot -ne "GPT") {
-        autoFixEFI -DriveLetter:V -Force:$Force
+        irm "https://raw.githubusercontent.com/hunandy14/autoFixEFI/master/autoFixEFI.ps1"|iex
+        autoFixEFI -DriveLetter:$DriveLetter -Force:$Force
     } elseif ($Boot -ne "MBR") { 
-        autoFixMBR -DriveLetter:V -Force:$Force
+        irm "https://raw.githubusercontent.com/hunandy14/autoFixEFI/master/autoFixMBR.ps1"|iex
+        autoFixMBR -DriveLetter:$DriveLetter -Force:$Force
     }
 }
