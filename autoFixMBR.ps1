@@ -1,27 +1,45 @@
 function autoFixMBR {
     param (
-        [Parameter(Position = 0, ParameterSetName = "", Mandatory=$true)]
+        [Parameter(Position = 0, ParameterSetName = "", Mandatory = $true)]
         [string] $DriveLetter,
+        [Parameter(Position = 1, ParameterSetName = "")]
+        [string] $BootLetter,
         [switch] $Force
     )
-    $Dri=(Get-Partition -DriveLetter:$DriveLetter)
-    if (!$Dri) { Write-Host "錯誤::請輸入正確的磁碟代號"; return}
-    if (($Dri|Get-Disk).PartitionStyle -ne "MBR") {
-        Write-Host "錯誤::該分區的磁碟為 MBR 非 GPT 格式"; return }
-    
-    $MBR_Letter  = "A"
-    $Active = $Dri|Where-Object{$_.IsActive}
-    
-    if (!$Active) {
-        Write-Host "該磁碟沒有啟動分區，即將把" -NoNewline
-        Write-Host " ($($DriveLetter):) " -ForegroundColor:Yellow -NoNewline
-        Write-Host "設置成啟動分區" 
-        $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) ";
-        if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
-        $Dri|Set-Partition -IsActive $True
-        $Active = $Dri|Where-Object{$_.IsActive}
+    $MBR_Letter = "B"
+    $Dri = (Get-Partition -DriveLetter:$DriveLetter)
+    if (!$Dri) { Write-Host "錯誤::請輸入正確的 DriveLetter 磁碟代號"; return }
+    if (($Dri | Get-Disk).PartitionStyle -ne "MBR") {
+        Write-Host "錯誤::該分區的磁碟為 MBR 非 GPT 格式"; return 
     }
-    Get-Partition -DiskNumber:$Dri.DiskNumber | Out-Default 
+    # 獲取啟動磁區位置
+    if ($BootLetter) {
+        # 使用指定的啟動磁區
+        $Active = Get-Partition -DriveLetter:$BootLetter
+        if (!$Active) { Write-Host "錯誤::請輸入正確的 BootLetter 磁碟代號"; return }
+        if (!$Active.IsActive) { $Active|Set-Partition -IsActive $True }
+    }
+    else {
+        # 自動搜尋啟動磁區是否存在
+        $Active = Get-Partition|Where-Object{$_.IsActive}
+        if (!$Active) {
+            Write-Host "該磁碟沒有啟動分區，即將把" -NoNewline
+            Write-Host " ($($DriveLetter):) " -ForegroundColor:Yellow -NoNewline
+            Write-Host "設置成啟動分區" 
+            if (!$Force) {
+                $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) ";
+                if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
+            }
+            $Active = $Dri
+            $Active|Set-Partition -IsActive $True
+        }
+    }
+    # 獲取Active磁碟代號
+    if(!$Active.DriveLetter){
+        $Active|Set-Partition -NewDriveLetter:$MBR_Letter; $Active=$Active|Get-Partition;
+    } $MBR_Letter = $Active.DriveLetter
+    # 將引導寫入啟動磁區
+    $Dri | Out-Default 
     Write-Host "即將把" -NoNewline
     Write-Host " ($($DriveLetter):\windows) " -ForegroundColor:Yellow -NoNewline
     Write-Host "的啟動引導, " -NoNewline
@@ -31,13 +49,13 @@ function autoFixMBR {
         $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) "
         if (($response -ne "Y") -or ($response -ne "Y")) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
     }
-    # 新增Active磁碟代號
-    if(!$Active.DriveLetter){ $Active|Set-Partition -NewDriveLetter:$MBR_Letter; $Active=$Active|Get-Partition; }
     # 重建MBR開機引導
-    $cmd = "bcdboot $($DriveLetter):\windows /f BIOS /s $($Active):\ /l zh-tw"
+    $cmd = "bcdboot $($DriveLetter):\windows /f BIOS /s $($MBR_Letter):\ /l zh-tw"
     Invoke-Expression $cmd
-    # 移除EFI磁碟代號
-    if ($DriveLetter -ne $Active.DriveLetter) {
-        $Active|Remove-PartitionAccessPath -AccessPath:"$($Active.DriveLetter):"
+    Get-Partition|Select-Object DriveLetter,Type,IsBoot,IsActive
+    # 移除Active磁碟代號
+    if ($DriveLetter -ne $Active.DriveLetter -and  $Active.DriveLetter -ne "C") {
+        $Active|Remove-PartitionAccessPath -AccessPath:"$($Active.DriveLetter)`:"
+        $Active|Get-Volume|Set-Volume -NewFileSystemLabel "系統保留"
     }
 } # autoFixMBR C
