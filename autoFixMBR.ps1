@@ -9,7 +9,7 @@ function autoFixMBR {
     if (($Dri|Get-Disk).PartitionStyle -ne "MBR") {
         Write-Host "錯誤::該分區的磁碟為 MBR 非 GPT 格式"; return }
     
-    $MBR_Letter  = "X"
+    $MBR_Letter  = "A"
     $Active = $Dri|Where-Object{$_.IsActive}
     
     if (!$Active) {
@@ -34,7 +34,7 @@ function autoFixMBR {
     # 新增Active磁碟代號
     if(!$Active.DriveLetter){ $Active|Set-Partition -NewDriveLetter:$MBR_Letter; $Active=$Active|Get-Partition; }
     # 重建MBR開機引導
-    $cmd = "bcdboot $($DriveLetter):\windows /f BIOS /s $($EFI_Letter):\ /l zh-tw"
+    $cmd = "bcdboot $($DriveLetter):\windows /f BIOS /s $($Active):\ /l zh-tw"
     Invoke-Expression $cmd
     # 移除EFI磁碟代號
     if ($DriveLetter -ne $Active.DriveLetter) {
