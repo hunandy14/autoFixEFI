@@ -44,5 +44,10 @@ autoFixMBR -DriveLetter:K
 irm bit.ly/3rk6Jrk|iex; autoFixMBR K
 ```
 
+## 安裝 DiskGenius
+```
+irm bit.ly/340Pi6W|iex; Install-DiskGenius
+```
+
 ## 注意事項
 預設會把啟動分區掛載到 B 曹位，如果該曹位已經被占用了，還沒寫防呆會直接報錯失敗。

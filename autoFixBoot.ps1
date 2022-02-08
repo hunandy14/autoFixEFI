@@ -17,3 +17,20 @@ function autoFixBoot {
         autoFixMBR -DriveLetter:$DriveLetter -Force:$Force
     }
 } # autoFixBoot C
+
+# 下載 DiskGenius 到桌面並啟動
+function Install-DiskGenius {
+    param (
+        [switch] $Force
+    )
+    $RegjumpSite = "https://download.eassos.cn/DG5421239_x64.zip"
+    $FileName    = "DG5421239_x64.zip"
+    $AppPath     = $([Environment]::GetFolderPath('Desktop'))
+    $Download = !(Test-Path "$AppPath\DiskGenius\DiskGenius.exe")
+    if ($Download -or $Force) {
+        Start-BitsTransfer $RegjumpSite "$env:TEMP\$FileName"
+        # Invoke-WebRequest $RegjumpSite -OutFile:$env:TEMP\$FileName
+        Expand-Archive "$env:TEMP\$FileName" $AppPath -Force
+        explorer "$AppPath\DiskGenius"
+    } explorer "$AppPath\DiskGenius\DiskGenius.exe"
+}
