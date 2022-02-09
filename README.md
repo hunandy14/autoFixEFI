@@ -51,3 +51,7 @@ irm bit.ly/3rk6Jrk|iex; autoFixMBR E
 ![](img/autoFixMBR.png)
 
 
+## 分離MBR的啟動磁區
+```
+irm bit.ly/3rk6Jrk|iex; CreateBootPartition
+```

@@ -1,3 +1,6 @@
+function MBR_INFO {
+    Get-Partition|Select-Object DriveLetter,Type,IsBoot,IsActive
+}
 function autoFixMBR {
     param (
         [Parameter(Position = 0, ParameterSetName = "", Mandatory = $true)]
@@ -12,15 +15,14 @@ function autoFixMBR {
     if (($Dri | Get-Disk).PartitionStyle -ne "MBR") {
         Write-Host "錯誤::該分區的磁碟為 MBR 非 GPT 格式"; return 
     }
+    
     # 獲取啟動磁區位置
-    if ($BootLetter) {
-        # 使用指定的啟動磁區
+    if ($BootLetter) { # 使用指定的啟動磁區
         $Active = Get-Partition -DriveLetter:$BootLetter
         if (!$Active) { Write-Host "錯誤::請輸入正確的 BootLetter 磁碟代號"; return }
         if (!$Active.IsActive) { $Active|Set-Partition -IsActive $True }
     }
-    else {
-        # 自動搜尋啟動磁區是否存在
+    else { # 自動搜尋啟動磁區是否存在
         $Active = Get-Partition|Where-Object{$_.IsActive}
         if (!$Active) {
             Write-Host "該磁碟沒有啟動分區，即將把" -NoNewline
@@ -34,10 +36,7 @@ function autoFixMBR {
             $Active|Set-Partition -IsActive $True
         }
     }
-    # 獲取Active磁碟代號
-    if(!$Active.DriveLetter){
-        $Active|Set-Partition -NewDriveLetter:$MBR_Letter; $Active=$Active|Get-Partition;
-    } $MBR_Letter = $Active.DriveLetter
+    
     # 將引導寫入啟動磁區
     $Dri | Out-Default 
     Write-Host "即將把" -NoNewline
@@ -49,6 +48,11 @@ function autoFixMBR {
         $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) "
         if (($response -ne "Y") -or ($response -ne "Y")) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
     }
+    
+    # 獲取Active磁碟代號
+    if(!$Active.DriveLetter){
+        $Active|Set-Partition -NewDriveLetter:$MBR_Letter; $Active=$Active|Get-Partition;
+    } $MBR_Letter = $Active.DriveLetter
     # 重建MBR開機引導
     $cmd = "bcdboot $($DriveLetter):\windows /f BIOS /s $($MBR_Letter):\ /l zh-tw"
     Invoke-Expression $cmd
@@ -59,3 +63,30 @@ function autoFixMBR {
         $Active|Get-Volume|Set-Volume -NewFileSystemLabel "系統保留"
     }
 } # autoFixMBR C
+
+function CreateBootPartition {
+    param (
+        [Parameter(Position = 0, ParameterSetName = "")]
+        [string] $DriveLetter,
+        [Parameter(Position = 1, ParameterSetName = "")]
+        [string] $Size,
+        [switch] $Force
+    )
+    if (!$Size) { $Size = 300MB }
+    if (!$DriveLetter) { $DriveLetter = "C" }
+    
+    # 搜尋啟動分區
+    $Active = Get-Partition|Where-Object{$_.IsActive}
+    # 有啟動且不同分區(不需要創建)
+    if ($Active) {
+        if ($Active.DriveLetter -ne $DriveLetter) {
+            Get-Partition|Select-Object DriveLetter,Type,IsBoot,IsActive; return
+        }
+    }
+    # 壓縮磁碟並建立啟動分區且修復
+    $Dri = (Get-Partition -DriveLetter:$DriveLetter)
+    $Dri|Resize-Partition -Size:($Dri.size-$Size) # 壓縮磁碟
+    $Active = (($Dri|New-Partition -Size:$EfiSize)|Format-Volume)|Get-Partition # 創建分區
+    $Active|Set-Partition -IsActive $True # 設置為啟動
+    autoFixMBR $DriveLetter -Force # 修復引導
+} # CreateBootPartition
