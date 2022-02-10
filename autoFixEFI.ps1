@@ -30,7 +30,8 @@ function autoFixEFI {
             if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
         }
         $Dri|Resize-Partition -Size:($Dri.size-$EfiSize)
-        $EFI = (($Dri|New-Partition -Size:($EfiSize) -GptType:$EFI_ID)|Format-Volume)|Get-Partition
+        $EFI = (($Dri|New-Partition -Size:($EfiSize) -GptType:$EFI_ID)|Format-Volume -FileSystem:FAT32 -Force)|Get-Partition
+        
     }
     # 修復EFI引導
     Get-Partition -DiskNumber:$Dri.DiskNumber | Out-Default 
