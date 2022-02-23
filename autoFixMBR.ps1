@@ -10,24 +10,28 @@ function autoFixMBR {
         [switch] $Force
     )
     $MBR_Letter = "B"
+    # 驗證磁碟是否有效
     $Dri = (Get-Partition -DriveLetter:$DriveLetter)
+    
     if (!$Dri) { Write-Host "錯誤::請輸入正確的 DriveLetter 磁碟代號"; return }
     if (($Dri | Get-Disk).PartitionStyle -ne "MBR") {
         Write-Host "錯誤::該分區的磁碟為 MBR 非 GPT 格式"; return
     }
 
     # 獲取啟動磁區位置
+    $Dri|Format-Table
     if ($BootLetter) { # 使用指定的啟動磁區
-        $Active = Get-Partition -DriveLetter:$BootLetter
+        $Active = $Dri|Get-Disk|Get-Partition -DriveLetter:$BootLetter
         if (!$Active) { Write-Host "錯誤::請輸入正確的 BootLetter 磁碟代號"; return }
         if (!$Active.IsActive) { $Active|Set-Partition -IsActive $True }
     }
     else { # 自動搜尋啟動磁區是否存在
-        $Active = Get-Partition|Where-Object{$_.IsActive}
+        $Active = $Dri|Get-Disk|Get-Partition|Where-Object{$_.IsActive}
         if (!$Active) {
-            Write-Host "該磁碟沒有啟動分區，即將把" -NoNewline
-            Write-Host " ($($DriveLetter):) " -ForegroundColor:Yellow -NoNewline
-            Write-Host "設置成啟動分區"
+            $DriName = ($Dri|Get-Volume).FileSystemLabel
+            Write-Host "磁碟分區 " -NoNewline
+            Write-Host "$DriName($DriveLetter`:)" -ForegroundColor:Yellow -NoNewline 
+            Write-Host " 沒有啟動分區，即將把該分區設置成啟動分區"
             if (!$Force) {
                 $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) ";
                 if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
@@ -36,9 +40,7 @@ function autoFixMBR {
             $Active|Set-Partition -IsActive $True
         }
     }
-
     # 將引導寫入啟動磁區
-    $Dri | Out-Default
     Write-Host "即將把" -NoNewline
     Write-Host " ($($DriveLetter):\windows) " -ForegroundColor:Yellow -NoNewline
     Write-Host "的啟動引導, " -NoNewline
@@ -53,16 +55,20 @@ function autoFixMBR {
     if(!$Active.DriveLetter){
         $Active|Set-Partition -NewDriveLetter:$MBR_Letter; $Active=$Active|Get-Partition;
     } $MBR_Letter = $Active.DriveLetter
+
     # 重建MBR開機引導
     $cmd = "bcdboot $($DriveLetter):\windows /f BIOS /s $($MBR_Letter):\ /l zh-tw"
     Invoke-Expression $cmd
-    Get-Partition|Select-Object DriveLetter,Type,IsBoot,IsActive
+
     # 移除Active磁碟代號
     if ($DriveLetter -ne $Active.DriveLetter -and  $Active.DriveLetter -ne "C") {
         $Active|Remove-PartitionAccessPath -AccessPath:"$($Active.DriveLetter)`:"
         $Active|Get-Volume|Set-Volume -NewFileSystemLabel "系統保留"
     }
-} # autoFixMBR C
+
+    # 確認最終結果
+    $Dri|Get-Disk|Get-Partition|Format-Table PartitionNumber,DriveLetter,@{Name='Size'; Expression={'{0:F1} GB'-f($_.Size/1GB)}},Type,IsBoot,IsActive
+} # autoFixMBR D -Force
 
 function CreateBootPartition {
     param (
@@ -73,33 +79,54 @@ function CreateBootPartition {
         [switch] $Force
     )
     # 基本設定 
-    if (!$Size) { $Size = 300MB }
+    if (!$Size) { $Size = 100MB }
     if (!$DriveLetter) { $DriveLetter = "C" }
 
     # 搜尋啟動分區
-    $Active = Get-Partition|Where-Object{$_.IsActive}
+    $Dri = (Get-Partition -DriveLetter:$DriveLetter)
+    if (!$Dri) { Write-Host "錯誤::請輸入正確的 DriveLetter 磁碟代號"; return }
+    if (($Dri | Get-Disk).PartitionStyle -ne "MBR") {
+        Write-Host "錯誤::該分區的磁碟為 MBR 非 GPT 格式"; return
+    } $Active = $Dri|Get-Disk|Get-Partition|Where-Object{$_.IsActive}
+
     # 有啟動且不同分區(不需要創建)
     if ($Active) {
         if ($Active.DriveLetter -ne $DriveLetter) {
-            Get-Partition|Select-Object DriveLetter,Type,IsBoot,IsActive; return
+            $Dri|Get-Disk|Get-Partition|Format-Table DriveLetter,Type,IsBoot,IsActive
+            Write-Host "已有獨立啟動分區，無須分離" -ForegroundColor:Yellow
+            return
         }
     }
-    
+
+    # 防呆保護
+    Write-Host "即將分離" -NoNewline
+    Write-Host " ($($DriveLetter):\windows) " -ForegroundColor:Yellow -NoNewline
+    Write-Host "的啟動引導"
+    if (!$Force) {
+        $response = Read-Host "  沒有異議，請輸入Y (Y/N) "
+        if (($response -ne "Y") -or ($response -ne "Y")) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
+    }
+
     # 查詢與計算空間
     $Dri = (Get-Partition -DriveLetter:$DriveLetter)
     $SupSize = $Dri|Get-PartitionSupportedSize
     $CurSize = $Dri.size
     $MaxSize = $SupSize.SizeMax
     $AvailableSize = $MaxSize - $CurSize
-    
-    # 空餘空間小於Boot空間，壓縮C曹
-    if ($AvailableSize -lt $Size) {
+
+    # 空餘空間小於Boot空間，壓縮該曹
+    if ($AvailableSize -lt ([int]$Size + 1048576)) {
         $ReSize = $MaxSize - $Size
+        # 目標分區在結尾(結尾必須保留 1048576 空間)
+        if ((($Dri|Get-Disk|Get-Partition)[-1]).UniqueId -eq $Dri.UniqueId) {
+            $ReSize = $ReSize - 1048576
+        }
         $Dri|Resize-Partition -Size:$ReSize
     }
     
     # 創建分區
     $Active = (($Dri|New-Partition -Size:$Size)|Format-Volume)|Get-Partition
     $Active|Set-Partition -IsActive $True
+    $Active|Get-Volume|Set-Volume -NewFileSystemLabel "系統保留"
     autoFixMBR $DriveLetter -Force
-} # CreateBootPartition
+} # CreateBootPartition -DriveLetter:D -Force
