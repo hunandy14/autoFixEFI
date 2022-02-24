@@ -119,8 +119,7 @@ function __BootList__ {
         $BootLoader += @($Item)
     }
     # return $BootLoader
-} 
-(__BootList__)
+} # (__BootList__)
 #  (__BootList__)|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
 
 function __Boot_Print__ {
@@ -130,14 +129,7 @@ function __Boot_Print__ {
     if (!$Boot) { $Boot = __BootList__ }
     ($Boot)|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
 } # __Boot_Print__
-
-
 # __Boot_Print__ (__BootList__)
-
-
-
-return
-
 
 function BCD_Editor {
     [CmdletBinding(DefaultParameterSetName = "Info")]
@@ -191,7 +183,7 @@ function BCD_Editor {
         __Boot_Print__
     }
 }
-# BCD_Editor -Default 1
+BCD_Editor -Default 1
 
 # $BootList
 
