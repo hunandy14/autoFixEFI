@@ -1,15 +1,15 @@
-# Àò¨úBCDª«¥ó
+# ç²å–BCDç‰©ä»¶
 function Get-BCD {
     param (
         
     )
     $BCD_Object = @()
-    # ¸ÑªR BCD
+    # è§£æ BCD
     $BCD = (bcdedit).Split("`n")
     $BootCount = ($BCD|Select-String -AllMatches "identifier").Count-1
     $obj = $BCD | Select-String -Pattern "identifier"
 
-    # ­pºâ Loder Äİ©Ê¼Æ¶q
+    # è¨ˆç®— Loder å±¬æ€§æ•¸é‡
     if($obj.Length -le 1){
         Write-Host "No Loder"; return
     } elseif ($obj.Length -eq 2) {
@@ -22,7 +22,7 @@ function Get-BCD {
         $Offset = $obj[1].LineNumber-1
     }
 
-    # ¸ÑªR BCD ªíÀY
+    # è§£æ BCD è¡¨é ­
     # $BootHeader = @()
     $Item = @{}
     for ($i = 0; $i -lt $HeadCount; $i++) {
@@ -34,7 +34,7 @@ function Get-BCD {
     # $BootHeader += @($Item)
     $BCD_Object += @($Item)
 
-    # ¸ÑªR BCD ¿ï³æ
+    # è§£æ BCD é¸å–®
     # $BootLoader = @()
     for ($j = 0; $j -lt $BootCount; $j++) {
         $Star = ($j*$BootCount)+$Offset
@@ -48,88 +48,29 @@ function Get-BCD {
         # $BootLoader += @($Item)
         $BCD_Object += @($Item)
     }
-    # §ïÅÜ¹w³]¿é¥X¼Ò¦¡
-    $DefaultProps = @('Number','description','device','resumeobject')
+    # æ”¹è®Šé è¨­è¼¸å‡ºæ¨¡å¼
+    $DefaultProps = @('Number','description','device','timeout')
     $DefaultDisplay = New-Object System.Management.Automation.PSPropertySet("DefaultDisplayPropertySet",[string[]]$DefaultProps)
     $PSStandardMembers = [System.Management.Automation.PSMemberInfo[]]@($DefaultDisplay)
     $BCD_Object | Add-Member MemberSet PSStandardMembers $PSStandardMembers
     
     return $BCD_Object
 } # Get-BCD
-function __Get-BCD_Tester__ {
-    param (
+# function __Get-BCD_Tester__ {
+#     param (
         
-    )
-    # ª½±µ¿é¥X¬İµ²ªG
+#     )
+    # ç›´æ¥è¼¸å‡ºçœ‹çµæœ
     # Get-BCD
-    # ´ú¸ÕREÀô¹Ò
+    # æ¸¬è©¦REç’°å¢ƒ
     # (Get-BCD)[1].recoveryenabled
-    # Àò¨ú¹w³]¿ï³æ
+    # ç²å–é è¨­é¸å–®
     # $default = (Get-BCD)|Where-Object{$_.identifier -contains ((Get-BCD)[0].default)}
     # $default|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
-    # Àò¨ú·í«e¨t²Î
+    # ç²å–ç•¶å‰ç³»çµ±
     # $current = (Get-BCD)|Where-Object{$_.identifier -contains '{current}'}
     # $current|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
-} # __Get-BCD_Tester__
-
-function __BootList__ {
-    param (
-        
-    )
-    # ¸ÑªR BCD
-    $BCD = (bcdedit).Split("`n")
-    $BootCount = ($BCD|Select-String -AllMatches "identifier").Count-1
-    $obj = $BCD | Select-String -Pattern "identifier"
-
-    # ­pºâ Loder Äİ©Ê¼Æ¶q
-    if($obj.Length -le 1){
-        Write-Host "No Loder"; return
-    } elseif ($obj.Length -eq 2) {
-        $AttrCount = $BCD.Count - $obj[1].LineNumber +1
-        $HeadCount = $obj[1].LineNumber-7
-        $Offset = $obj[1].LineNumber-1
-    } else {
-        $AttrCount = $obj[2].LineNumber - $obj[1].LineNumber -3
-        $HeadCount = $BCD.Count - $obj[1].LineNumber +1
-        $Offset = $obj[1].LineNumber-1
-    }
-
-    # ¸ÑªR BCD ªíÀY
-    $BootHeader = @()
-    $Item = @{}
-    for ($i = 0; $i -lt $HeadCount; $i++) {
-        $Line = $BCD[3+$i]
-        $Attr = $Line.Substring(0,24).trim()
-        $Value = $Line.Substring(24,$Line.Length-24).trim()
-        $Item += @{ $Attr = $Value}
-    } $Item = $Item|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
-    $BootHeader += @($Item)
-
-    # ¸ÑªR BCD ¿ï³æ
-    $BootLoader = @()
-    for ($j = 0; $j -lt $BootCount; $j++) {
-        $Star = ($j*$BootCount)+$Offset
-        $Item = @{Number = $i+1}
-        for ($i = 0; $i -lt $AttrCount; $i++) {
-            $Line = $BCD[$Star+$i]
-            $Attr = $Line.Substring(0,24).trim()
-            $Value = $Line.Substring(24,$Line.Length-24).trim()
-            $Item += @{ $Attr = $Value}
-        } $Item = $Item|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
-        $BootLoader += @($Item)
-    }
-    # return $BootLoader
-} # (__BootList__)
-#  (__BootList__)|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
-
-function __Boot_Print__ {
-    param (
-        [System.Object] $Boot
-    )
-    if (!$Boot) { $Boot = __BootList__ }
-    ($Boot)|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
-} # __Boot_Print__
-# __Boot_Print__ (__BootList__)
+# } # __Get-BCD_Tester__
 
 function BCD_Editor {
     [CmdletBinding(DefaultParameterSetName = "Info")]
@@ -143,47 +84,48 @@ function BCD_Editor {
     [Parameter(Position = 1, ParameterSetName = "Delete")]
     [Parameter(Position = 1, ParameterSetName = "Default")]
     [int] $Index,
-    
-    
     [Parameter(ParameterSetName = "")]
     [int] $Times,
+    [Parameter(ParameterSetName = "")]
     [switch] $Force
     )
-    # ¸ÑªR BCD ¿ï³æ
-    $BootList = __BootList__
-    $BootID = $BootList[$Index-1].resumeobject
-    
-    # ­×§ïµ¥«İ®É¶¡
+    # ä¿®æ”¹ç­‰å¾…æ™‚é–“
     if ($Times) { bcdedit /timeout $Times }
     
-    # ¬d¬İ¿ï³æ
-    if ($Info) {
-        __Boot_Print__ $BootList
-    }
-    # §R°£¿ï³æ
+    # ç²å– BCD
+    $BCD = Get-BCD
+    
+    # æŸ¥çœ‹é¸å–®
+    if ($Info) { $BCD }
+    
+    # åˆªé™¤é¸å–®
     if ($Delete) {
-        __Boot_Print__ $BootList[$Index-1]
-        Write-Host " §Y±N§R°£¤W­z¿ï³æ" -ForegroundColor:Yellow
+        $BCD[$Index]
+        Write-Host " å³å°‡åˆªé™¤ä¸Šè¿°é¸å–® (éŒ¯èª¤çš„æ“ä½œæœƒå°è‡´ç„¡æ³•é–‹æ©Ÿ)" -ForegroundColor:Yellow
         if (!$Force) {
-            $response = Read-Host "  ¨S¦³²§Ä³½Ğ¿é¤JY (Y/N) ";
-            if ($response -ne "Y" -or $response -ne "Y") { Write-Host "¨Ï¥ÎªÌ¤¤Â_" -ForegroundColor:Red; return; }
+            $response = Read-Host "  æ²’æœ‰ç•°è­°è«‹è¼¸å…¥Y (Y/N) ";
+            if ($response -ne "Y" -or $response -ne "Y") { Write-Host "ä½¿ç”¨è€…ä¸­æ–·" -ForegroundColor:Red; return; }
         }
         bcdedit /delete $BootID
         Write-Host ""
-        # ­«·sÅª¨úBCD¿ï³æ
-        Write-Host "­«·s¸ü¤J³Ì·s¿ï³æª¬ºA¡G"
-        __Boot_Print__
+        # é‡æ–°è®€å–BCDé¸å–®
+        Write-Host "é‡æ–°è¼‰å…¥æœ€æ–°é¸å–®ç‹€æ…‹ï¼š" -ForegroundColor:Yellow
+        Get-BCD
+        return
     } 
     
-    # ÅÜ§ó¹w³]¿ï³æ
+    # è®Šæ›´é è¨­é¸å–®
     elseif ($Default) {
-        "bcdedit /default $BootID"
-        
-        Write-Host "­«·s¸ü¤J³Ì·s¿ï³æª¬ºA¡G" -ForegroundColor:Yellow
-        __Boot_Print__
+        $BCD[$Index]
+        Write-Host " å³å°‡æŠŠä¸Šè¿°é¸å–®è¨­ç‚ºé è¨­ (éŒ¯èª¤çš„æ“ä½œæœƒå°è‡´ç„¡æ³•é–‹æ©Ÿ)" -ForegroundColor:Yellow
+        if (!$Force) {
+            $response = Read-Host "  æ²’æœ‰ç•°è­°è«‹è¼¸å…¥Y (Y/N) ";
+            if ($response -ne "Y" -or $response -ne "Y") { Write-Host "ä½¿ç”¨è€…ä¸­æ–·" -ForegroundColor:Red; return; }
+        }
+        bcdedit /default $BootID
+        Write-Host ""
+        Write-Host "é‡æ–°è¼‰å…¥æœ€æ–°é¸å–®ç‹€æ…‹ï¼š" -ForegroundColor:Yellow
+        Get-BCD
+        return
     }
-}
-BCD_Editor -Default 1
-
-# $BootList
-
+} # BCD_Editor -Info
