@@ -55,3 +55,18 @@ irm bit.ly/3rk6Jrk|iex; autoFixMBR E
 ```
 irm bit.ly/3rk6Jrk|iex; CreateBootPartition
 ```
+
+## 修改BCD選單
+```
+# 查看當前開機選單
+irm bit.ly/3IkqdmO|iex; GET-BCD
+
+# 設置開機選單時間
+irm bit.ly/3IkqdmO|iex; BCD_Editor -Times:1
+
+# 刪除2號選單
+irm bit.ly/3IkqdmO|iex; BCD_Editor -Delete 2
+
+# 設置2號為預設
+irm bit.ly/3IkqdmO|iex; BCD_Editor -Default 2
+```
