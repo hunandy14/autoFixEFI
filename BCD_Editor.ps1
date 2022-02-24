@@ -18,7 +18,7 @@ function Get-BCD {
         $Offset = $obj[1].LineNumber-1
     } else {
         $AttrCount = $obj[2].LineNumber - $obj[1].LineNumber -3
-        $HeadCount = $BCD.Count - $obj[1].LineNumber +1
+        $HeadCount = $obj[1].LineNumber-7
         $Offset = $obj[1].LineNumber-1
     }
 
@@ -27,10 +27,13 @@ function Get-BCD {
     $Item = @{}
     for ($i = 0; $i -lt $HeadCount; $i++) {
         $Line = $BCD[3+$i]
+        if ($Line.Length -lt 24) {continue}
         $Attr = $Line.Substring(0,24).trim()
+        if ($Attr -eq "") { $Attr = "(NULL)[$i]" }
         $Value = $Line.Substring(24,$Line.Length-24).trim()
         $Item += @{ $Attr = $Value}
-    } $Item = $Item|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
+    } 
+    $Item = $Item|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
     # $BootHeader += @($Item)
     $BCD_Object += @($Item)
 
@@ -41,7 +44,9 @@ function Get-BCD {
         $Item = @{Number = $j+1}
         for ($i = 0; $i -lt $AttrCount; $i++) {
             $Line = $BCD[$Star+$i]
+            if ($Line.Length -lt 24) {continue}
             $Attr = $Line.Substring(0,24).trim()
+            if ($Attr -eq "") { $Attr = "(NULL)[$i]" }
             $Value = $Line.Substring(24,$Line.Length-24).trim()
             $Item += @{ $Attr = $Value}
         } $Item = $Item|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
