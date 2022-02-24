@@ -29,54 +29,71 @@ function __BootList__ {
             nx                      = $BCD[$Star+14].Substring(24,(($BCD)[$Star+14].Length-24))
             bootmenupolicy          = $BCD[$Star+15].Substring(24,(($BCD)[$Star+15].Length-24))
         } |ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
-        # $Item|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
+        # __Boot_Print__ $Item
         $BootList += $Item
     } return $BootList
+}
+function __Boot_Print__ {
+    param (
+        [System.Object] $Boot
+    )
+    if (!$Boot) { $Boot = __BootList__ }
+    ($Boot)|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
 }
 
 function BCD_Editor {
     [CmdletBinding(DefaultParameterSetName = "Info")]
     param (
-    [Parameter(ParameterSetName = "Delete")]
-    [int] $DeleteIndex,
-    [Parameter(ParameterSetName = "Default")]
-    [int] $DefaultIndex,
+    [Parameter(Position = 0, ParameterSetName = "Delete")]
+    [switch] $Delete,
+    [Parameter(Position = 0, ParameterSetName = "Default")]
+    [switch] $Default,
+    [Parameter(Position = 0, ParameterSetName = "Info")]
+    [switch] $Info,
+    [Parameter(Position = 1, ParameterSetName = "Delete")]
+    [Parameter(Position = 1, ParameterSetName = "Default")]
+    [int] $Index,
+    
+    
     [Parameter(ParameterSetName = "")]
     [int] $Times,
-    [Parameter(ParameterSetName = "Info")]
-    [switch] $Info
+    [switch] $Force
     )
     # 解析 BCD 選單
     $BootList = __BootList__
+    $BootID = $BootList[$Index-1].resumeobject
     
     # 修改等待時間
     if ($Times) { bcdedit /timeout $Times }
     
-    # 變更預設選單
-    
-    
     # 查看選單
     if ($Info) {
-        $BootList|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
+        __Boot_Print__ $BootList
     }
-    if ($DeleteIndex) {
-        $BootList[$DeleteIndex-1]|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
+    # 刪除選單
+    if ($Delete) {
+        __Boot_Print__ $BootList[$Index-1]
         Write-Host " 即將刪除上述選單" -ForegroundColor:Yellow
         if (!$Force) {
             $response = Read-Host "  沒有異議請輸入Y (Y/N) ";
             if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
         }
-        $BootID = $BootList[$DeleteIndex-1].resumeobject
-        # $BootID
-        # bcdedit /delete $BootID
+        bcdedit /delete $BootID
         Write-Host ""
-        
         # 重新讀取BCD選單
         Write-Host "重新載入最新選單狀態："
-        (__BootList__)|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
+        __Boot_Print__
+    } 
+    
+    # 變更預設選單
+    elseif ($Default) {
+        "bcdedit /default $BootID"
+        
+        Write-Host "重新載入最新選單狀態：" -ForegroundColor:Yellow
+        __Boot_Print__
     }
 }
-BCD_Editor -DefaultIndex:1
+BCD_Editor -Default 1
 
 # $BootList
 
