@@ -2,44 +2,55 @@ function __BootList__ {
     param (
         
     )
-    # è§£æ BCD
-    $BCD = (bcdedit).Split("`n")
+    # ¸ÑªR BCD
+    $BCD_Str = (bcdedit)
+    $BCD = $BCD_Str.Split("`n")
     $BootCount = ($BCD|Select-String -AllMatches "identifier").Count - 1
     $BootHead = ($BCD)[3..13]
-    # è§£æ BCD é¸å–®
+    
+    $obj = $BCD_Str | Select-String -Pattern "identifier"
+    # ­pºâ Loder Äİ©Ê¼Æ¶q
+    if($obj.Length -le 1){
+        Write-Host "No Loder"; return
+    } elseif ($obj.Length -eq 2) {
+        $AttrCount = $BCD.Count - $obj[1].LineNumber +1
+    } else {
+        $AttrCount = $obj[2].LineNumber - $obj[1].LineNumber -3
+    }
+    # ¸ÑªR BCD ¿ï³æ
     $BootList = @()
     for ($i = 0; $i -lt $BootCount; $i++) {
-        $Star = (13 + ($i*19)) + 4
-        $Item = @{
-            Number                  = $i+1
-            identifier              = $BCD[$Star+0 ].Substring(24,(($BCD)[$Star+0 ].Length-24))
-            device                  = $BCD[$Star+1 ].Substring(24,(($BCD)[$Star+1 ].Length-24))
-            path                    = $BCD[$Star+2 ].Substring(24,(($BCD)[$Star+2 ].Length-24))
-            description             = $BCD[$Star+3 ].Substring(24,(($BCD)[$Star+3 ].Length-24))
-            locale                  = $BCD[$Star+4 ].Substring(24,(($BCD)[$Star+4 ].Length-24))
-            inherit                 = $BCD[$Star+5 ].Substring(24,(($BCD)[$Star+5 ].Length-24))
-            recoverysequence        = $BCD[$Star+6 ].Substring(24,(($BCD)[$Star+6 ].Length-24))
-            displaymessageoverride  = $BCD[$Star+7 ].Substring(24,(($BCD)[$Star+7 ].Length-24))
-            recoveryenabled         = $BCD[$Star+8 ].Substring(24,(($BCD)[$Star+8 ].Length-24))
-            isolatedcontext         = $BCD[$Star+9 ].Substring(24,(($BCD)[$Star+9 ].Length-24))
-            allowedinmemorysettings = $BCD[$Star+10].Substring(24,(($BCD)[$Star+10].Length-24))
-            osdevice                = $BCD[$Star+11].Substring(24,(($BCD)[$Star+11].Length-24))
-            systemroot              = $BCD[$Star+12].Substring(24,(($BCD)[$Star+12].Length-24))
-            resumeobject            = $BCD[$Star+13].Substring(24,(($BCD)[$Star+13].Length-24))
-            nx                      = $BCD[$Star+14].Substring(24,(($BCD)[$Star+14].Length-24))
-            bootmenupolicy          = $BCD[$Star+15].Substring(24,(($BCD)[$Star+15].Length-24))
-        } |ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
+        $Star = ($i*$BootCount)+16
+        $Item = @{ Number = $i+1}
+        for ($j = 0; $j -lt $AttrCount; $j++) {
+            $idx = $Star+$j
+            $Line =  $BCD[$idx]
+            $Attr = $Line.Substring(0,24).trim()
+            $Value = $Line.Substring(24,$Line.Length-24).trim()
+            $Item += @{ $Attr = $Value}
+        } 
+        $Item = $Item|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
         # __Boot_Print__ $Item
-        $BootList += $Item
-    } return $BootList
-}
+        $BootList += @($Item)
+    }
+    return $BootList
+} # (__BootList__)|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
+
 function __Boot_Print__ {
     param (
         [System.Object] $Boot
     )
     if (!$Boot) { $Boot = __BootList__ }
     ($Boot)|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
-}
+} # __Boot_Print__
+
+
+__Boot_Print__ (__BootList__)
+
+
+
+return
+
 
 function BCD_Editor {
     [CmdletBinding(DefaultParameterSetName = "Info")]
@@ -59,41 +70,41 @@ function BCD_Editor {
     [int] $Times,
     [switch] $Force
     )
-    # è§£æ BCD é¸å–®
+    # ¸ÑªR BCD ¿ï³æ
     $BootList = __BootList__
     $BootID = $BootList[$Index-1].resumeobject
     
-    # ä¿®æ”¹ç­‰å¾…æ™‚é–“
+    # ­×§ïµ¥«İ®É¶¡
     if ($Times) { bcdedit /timeout $Times }
     
-    # æŸ¥çœ‹é¸å–®
+    # ¬d¬İ¿ï³æ
     if ($Info) {
         __Boot_Print__ $BootList
     }
-    # åˆªé™¤é¸å–®
+    # §R°£¿ï³æ
     if ($Delete) {
         __Boot_Print__ $BootList[$Index-1]
-        Write-Host " å³å°‡åˆªé™¤ä¸Šè¿°é¸å–®" -ForegroundColor:Yellow
+        Write-Host " §Y±N§R°£¤W­z¿ï³æ" -ForegroundColor:Yellow
         if (!$Force) {
-            $response = Read-Host "  æ²’æœ‰ç•°è­°è«‹è¼¸å…¥Y (Y/N) ";
-            if ($response -ne "Y" -or $response -ne "Y") { Write-Host "ä½¿ç”¨è€…ä¸­æ–·" -ForegroundColor:Red; return; }
+            $response = Read-Host "  ¨S¦³²§Ä³½Ğ¿é¤JY (Y/N) ";
+            if ($response -ne "Y" -or $response -ne "Y") { Write-Host "¨Ï¥ÎªÌ¤¤Â_" -ForegroundColor:Red; return; }
         }
         bcdedit /delete $BootID
         Write-Host ""
-        # é‡æ–°è®€å–BCDé¸å–®
-        Write-Host "é‡æ–°è¼‰å…¥æœ€æ–°é¸å–®ç‹€æ…‹ï¼š"
+        # ­«·sÅª¨úBCD¿ï³æ
+        Write-Host "­«·s¸ü¤J³Ì·s¿ï³æª¬ºA¡G"
         __Boot_Print__
     } 
     
-    # è®Šæ›´é è¨­é¸å–®
+    # ÅÜ§ó¹w³]¿ï³æ
     elseif ($Default) {
         "bcdedit /default $BootID"
         
-        Write-Host "é‡æ–°è¼‰å…¥æœ€æ–°é¸å–®ç‹€æ…‹ï¼š" -ForegroundColor:Yellow
+        Write-Host "­«·s¸ü¤J³Ì·s¿ï³æª¬ºA¡G" -ForegroundColor:Yellow
         __Boot_Print__
     }
 }
-BCD_Editor -Default 1
+# BCD_Editor -Default 1
 
 # $BootList
 
