@@ -1,7 +1,15 @@
 # 獲取BCD物件
 function Get-BCD {
+    [CmdletBinding(DefaultParameterSetName = "_Default_")]
     param (
-        
+        [Parameter(Position = 0, ParameterSetName = "_Default_")]
+        [switch] $_Default_,
+        [Parameter(Position = 0, ParameterSetName = "FormatOut")]
+        [switch] $FormatOut,
+        [Parameter(Position = 0, ParameterSetName = "DefaultLoder")]
+        [switch] $DefaultLoder,
+        [Parameter(Position = 0, ParameterSetName = "CurrentLorder")]
+        [switch] $CurrentLorder
     )
     $BCD_Object = @()
     # 解析 BCD
@@ -54,16 +62,40 @@ function Get-BCD {
         $BCD_Object += @($Item)
     }
     # 改變預設輸出模式
-    $DefaultProps = @('Number','description','device','timeout')
+    $DefaultProps = @('Number','description','device','resumeobject')
     $DefaultDisplay = New-Object System.Management.Automation.PSPropertySet("DefaultDisplayPropertySet",[string[]]$DefaultProps)
     $PSStandardMembers = [System.Management.Automation.PSMemberInfo[]]@($DefaultDisplay)
-    $BCD_Object | Add-Member MemberSet PSStandardMembers $PSStandardMembers
+    $BCD_Object|Add-Member MemberSet PSStandardMembers $PSStandardMembers
     
+    # 格式化輸出終端機
+    $Output=$false
+    if ($FormatOut) {
+        $Output=$true
+    } elseif ($DefaultLoder) {
+        $DstName = $BCD_Object[0].default
+        $BCD_Object = $BCD_Object|Where-Object{$_.identifier -contains $DstName}; $Output=$true
+    } elseif ($CurrentLorder) {
+        $DstName = '{current}'
+        $BCD_Object = $BCD_Object|Where-Object{$_.identifier -contains $DstName}; $Output=$true
+    }
+    # 輸出格式化結果
+    if ($Output) {
+        $BCD_Object|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},timeout
+        return
+    }
+    
+    # 輸出選單
     return $BCD_Object
-} # Get-BCD
+} 
+# Get-BCD 
+# Get-BCD -FormatOut
+# Get-BCD -DefaultLoder
+# Get-BCD -CurrentLorder
+
+# 測試
 # function __Get-BCD_Tester__ {
 #     param (
-        
+        # 
 #     )
     # 直接輸出看結果
     # Get-BCD
@@ -101,36 +133,40 @@ function BCD_Editor {
     $BCD = Get-BCD
     
     # 查看選單
-    if ($Info) { $BCD }
+    if ($Info) {
+        $BCD|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},timeout
+    }
     
     # 刪除選單
     if ($Delete) {
-        $BCD[$Index]
+        $BCD[$Index]|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},timeout
         Write-Host " 即將刪除上述選單 (錯誤的操作會導致無法開機)" -ForegroundColor:Yellow
         if (!$Force) {
             $response = Read-Host "  沒有異議請輸入Y (Y/N) ";
             if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
         }
+        $BootID = $BCD[$Index].resumeobject
         bcdedit /delete $BootID
         Write-Host ""
         # 重新讀取BCD選單
         Write-Host "重新載入最新選單狀態：" -ForegroundColor:Yellow
-        Get-BCD
+        Get-BCD -FormatOut
         return
     } 
     
     # 變更預設選單
     elseif ($Default) {
-        $BCD[$Index]
+        $BCD[$Index]|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},timeout
         Write-Host " 即將把上述選單設為預設 (錯誤的操作會導致無法開機)" -ForegroundColor:Yellow
         if (!$Force) {
             $response = Read-Host "  沒有異議請輸入Y (Y/N) ";
             if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
         }
+        $BootID = $BCD[$Index].resumeobject
         bcdedit /default $BootID
         Write-Host ""
         Write-Host "重新載入最新選單狀態：" -ForegroundColor:Yellow
-        Get-BCD
+        Get-BCD -FormatOut
         return
     }
 } # BCD_Editor -Info

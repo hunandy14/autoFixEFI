@@ -59,7 +59,7 @@ irm bit.ly/3rk6Jrk|iex; CreateBootPartition
 ## 修改BCD選單
 ```
 # 查看當前開機選單
-irm bit.ly/3IkqdmO|iex; GET-BCD
+irm bit.ly/3IkqdmO|iex; BCD_Editor -Info
 
 # 設置開機選單時間
 irm bit.ly/3IkqdmO|iex; BCD_Editor -Times:1
@@ -69,4 +69,15 @@ irm bit.ly/3IkqdmO|iex; BCD_Editor -Delete 2
 
 # 設置2號為預設
 irm bit.ly/3IkqdmO|iex; BCD_Editor -Default 2
+```
+
+```
+# 查看當前開機選單
+irm bit.ly/3IkqdmO|iex; Get-BCD -FormatOut
+
+# 查看預設系統
+irm bit.ly/3IkqdmO|iex; Get-BCD -DefaultLoder
+
+# 查看當前系統
+irm bit.ly/3IkqdmO|iex; Get-BCD -CurrentLorder
 ```
