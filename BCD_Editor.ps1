@@ -137,29 +137,38 @@ function BCD_Editor {
         [Parameter(ParameterSetName = "")]
         [switch] $Force
     )
-    # 修改等待時間
-    if ($Times -ge 0) { bcdedit /timeout $Times }
+
     
     # 獲取 BCD
     if ($Path) { $BCD = Get-BCD -Path:$Path } else { $BCD = Get-BCD }
+    if ($Path) { $cmd_bcdedit = "bcdedit /store $Path" } else {$cmd_bcdedit = "bcdedit"}
     $BootID = $BCD[$Index].identifier
     # if ($Index -eq 0) { Write-Error "Index 輸入錯誤" }
     if (!$BootID) { Write-Error "Index 輸入錯誤" }
-    
+
     # 查看選單
     if ($Info) {
         $BCD|Format-Table
     }
+
+    # 修改等待時間
+    if ($Times -ge 0) {
+        $cmd = "$cmd_bcdedit /timeout $Times"
+        Write-Host $cmd
+        Invoke-Expression $cmd
+    }
+
     # 刪除選單
     if ($Delete) {
         $BCD[$Index]|Format-Table
-        "bcdedit /delete $BootID"
+        $cmd = "$cmd_bcdedit /delete '$BootID'"
         Write-Host " 即將刪除上述選單 (錯誤的操作會導致無法開機)" -ForegroundColor:Yellow
+        Write-Host $cmd
         if (!$Force) {
             $response = Read-Host "  沒有異議請輸入Y (Y/N) ";
             if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
         }
-        bcdedit /delete $BootID
+        Invoke-Expression $cmd
         Write-Host ""
         # 重新讀取BCD選單
         Write-Host "重新載入最新選單狀態：" -ForegroundColor:Yellow
@@ -171,13 +180,14 @@ function BCD_Editor {
     # 變更預設選單
     if ($Default) {
         $BCD[$Index]|Format-Table
-        "bcdedit /default $BootID"
+        $cmd = "$cmd_bcdedit /default '$BootID'"
         Write-Host " 即將把上述選單設為預設 (錯誤的操作會導致無法開機)" -ForegroundColor:Yellow
+        Write-Host $cmd
         if (!$Force) {
             $response = Read-Host "  沒有異議請輸入Y (Y/N) ";
             if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
         }
-        bcdedit /default $BootID
+        Invoke-Expression $cmd
         Write-Host ""
         Write-Host "重新載入最新選單狀態：" -ForegroundColor:Yellow
         if ($Path) { $BCD = Get-BCD -Path:$Path } else { $BCD = Get-BCD }
@@ -188,13 +198,14 @@ function BCD_Editor {
     # 變更描述名稱
     if ($Description) {
         $BCD[$Index]|Format-Table
-        "bcdedit /set $BootID description `"$DescName`""
-        Write-Host " 即將把上述選單描述修改為 `"$DescName`"" -ForegroundColor:Yellow
-        if (!$Force) {
+        $cmd = "$cmd_bcdedit /set '$BootID' description '$DescName'"
+        Write-Host " 即將把上述選單描述修改為 $DescName" -ForegroundColor:Yellow
+            Write-Host $cmd
+            if (!$Force) {
             $response = Read-Host "  沒有異議請輸入Y (Y/N) ";
             if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
         }
-        bcdedit /set $BootID description "`"$DescName`""
+        Invoke-Expression $cmd
         Write-Host ""
         Write-Host "重新載入最新選單狀態：" -ForegroundColor:Yellow
         if ($Path) { $BCD = Get-BCD -Path:$Path } else { $BCD = Get-BCD }
@@ -206,13 +217,13 @@ function BCD_Editor {
         $BCD[$Index]|Format-Table
 
         if ($MoveToFirst) {
-            $cmd = "bcdedit /displayorder '$BootID' /addfirst"
-            Write-Host $cmd
+            $cmd = "$cmd_bcdedit /displayorder '$BootID' /addfirst"
             Write-Host " 即將把上述選單移動到最頂部" -ForegroundColor:Yellow
-        } elseif ($MoveToLast) {
-            $cmd = "bcdedit /displayorder '$BootID' /addlast"
             Write-Host $cmd
+        } elseif ($MoveToLast) {
+            $cmd = "$cmd_bcdedit /displayorder '$BootID' /addlast"
             Write-Host " 即將把上述選單移動到最底下" -ForegroundColor:Yellow
+            Write-Host $cmd
         }
 
         
@@ -236,4 +247,14 @@ function BCD_Editor {
 # BCD_Editor -Description 2 "Windows 11  - 臨時系統"
 # BCD_Editor -MoveToFirst 2
 # BCD_Editor -MoveToLast 1
-# BCD_Editor -Path:"B:\Boot\BCD"
+
+# BCD_Editor -Path:"B:\Boot\BCD" -Info
+# BCD_Editor -Path:"X:\Boot\BCD" -Info
+# BCD_Editor -Path:"B:\Boot\BCD" -Default 1
+# BCD_Editor -Path:"A:\Boot\BCD" -Delete 1
+# BCD_Editor -Path:"B:\Boot\BCD" -Times 5
+# BCD_Editor -Path:"B:\Boot\BCD" -Description 2 "Windows 11"
+# BCD_Editor -Path:"B:\Boot\BCD" -MoveToFirst 2
+# BCD_Editor -Path:"B:\Boot\BCD" -MoveToLast 1
+
+# BCD_Editor -Path:"B:\Boot\BCD" -Info
