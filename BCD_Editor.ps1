@@ -13,7 +13,7 @@ function Get-BCD {
     )
     $BCD_Object = @()
     # 解析 BCD
-    $BCD = (bcdedit).Split("`n")
+    $BCD = ((bcdedit)+"`n").Split("`n")
     $BootCount = ($BCD|Select-String -AllMatches "identifier").Count-1
     $obj = $BCD | Select-String -Pattern "identifier"
 
@@ -48,10 +48,14 @@ function Get-BCD {
     # 解析 BCD 選單
     # $BootLoader = @()
     for ($j = 0; $j -lt $BootCount; $j++) {
-        $Star = ($j*$BootCount)+$Offset
+        # $Star = ($j*$AttrCount)+$Offset
+        $Star = $obj[$j+1].LineNumber - 1
+        # Write-Host "$BootCount::$Star"
         $Item = @{Number = $j+1}
-        for ($i = 0; $i -lt $AttrCount; $i++) {
+        for ($i = 0; $i -lt $BCD.Count; $i++) {
             $Line = $BCD[$Star+$i]
+            if ($Line -eq "") { break; }
+            # Write-Host "[$Star]$Line"
             if ($Line.Length -lt 24) {continue}
             $Attr = $Line.Substring(0,24).trim()
             if ($Attr -eq "") { $Attr = "(NULL)[$i]" }
@@ -60,9 +64,10 @@ function Get-BCD {
         } $Item = $Item|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
         # $BootLoader += @($Item)
         $BCD_Object += @($Item)
+        # Write-Host "--------------------------"
     }
     # 改變預設輸出模式
-    $DefaultProps = @('Number','description','device','resumeobject')
+    $DefaultProps = @('Number','description','device','identifier')
     $DefaultDisplay = New-Object System.Management.Automation.PSPropertySet("DefaultDisplayPropertySet",[string[]]$DefaultProps)
     $PSStandardMembers = [System.Management.Automation.PSMemberInfo[]]@($DefaultDisplay)
     $BCD_Object|Add-Member MemberSet PSStandardMembers $PSStandardMembers
@@ -87,10 +92,11 @@ function Get-BCD {
     # 輸出選單
     return $BCD_Object
 } 
-# Get-BCD 
+# # (Get-BCD)
 # Get-BCD -FormatOut
 # Get-BCD -DefaultLoder
 # Get-BCD -CurrentLorder
+# return
 
 # 測試
 # function __Get-BCD_Tester__ {
@@ -112,19 +118,19 @@ function Get-BCD {
 function BCD_Editor {
     [CmdletBinding(DefaultParameterSetName = "Info")]
     param (
-    [Parameter(Position = 0, ParameterSetName = "Delete")]
-    [switch] $Delete,
-    [Parameter(Position = 0, ParameterSetName = "Default")]
-    [switch] $Default,
-    [Parameter(Position = 0, ParameterSetName = "Info")]
-    [switch] $Info,
-    [Parameter(Position = 1, ParameterSetName = "Delete")]
-    [Parameter(Position = 1, ParameterSetName = "Default")]
-    [int] $Index,
-    [Parameter(ParameterSetName = "")]
-    [int] $Times,
-    [Parameter(ParameterSetName = "")]
-    [switch] $Force
+        [Parameter(Position = 0, ParameterSetName = "Delete")]
+        [switch] $Delete,
+        [Parameter(Position = 0, ParameterSetName = "Default")]
+        [switch] $Default,
+        [Parameter(Position = 0, ParameterSetName = "Info")]
+        [switch] $Info,
+        [Parameter(Position = 1, ParameterSetName = "Delete")]
+        [Parameter(Position = 1, ParameterSetName = "Default")]
+        [int] $Index,
+        [Parameter(ParameterSetName = "")]
+        [int] $Times,
+        [Parameter(ParameterSetName = "")]
+        [switch] $Force
     )
     # 修改等待時間
     if ($Times) { bcdedit /timeout $Times }
@@ -134,39 +140,43 @@ function BCD_Editor {
     
     # 查看選單
     if ($Info) {
-        $BCD|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},timeout
+        $BCD|Format-Table
     }
-    
     # 刪除選單
     if ($Delete) {
-        $BCD[$Index]|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},timeout
+        $BCD[$Index]|Format-Table
+        $BootID = $BCD[$Index].identifier
+        "bcdedit /delete $BootID"
         Write-Host " 即將刪除上述選單 (錯誤的操作會導致無法開機)" -ForegroundColor:Yellow
         if (!$Force) {
             $response = Read-Host "  沒有異議請輸入Y (Y/N) ";
             if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
         }
-        $BootID = $BCD[$Index].resumeobject
         bcdedit /delete $BootID
         Write-Host ""
         # 重新讀取BCD選單
         Write-Host "重新載入最新選單狀態：" -ForegroundColor:Yellow
         Get-BCD -FormatOut
         return
-    } 
-    
+    }
+
     # 變更預設選單
-    elseif ($Default) {
-        $BCD[$Index]|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},timeout
+    if ($Default) {
+        $BCD[$Index]|Format-Table
+        $BootID = $BCD[$Index].identifier
+        "bcdedit /default $BootID"
         Write-Host " 即將把上述選單設為預設 (錯誤的操作會導致無法開機)" -ForegroundColor:Yellow
         if (!$Force) {
             $response = Read-Host "  沒有異議請輸入Y (Y/N) ";
             if ($response -ne "Y" -or $response -ne "Y") { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
         }
-        $BootID = $BCD[$Index].resumeobject
         bcdedit /default $BootID
         Write-Host ""
         Write-Host "重新載入最新選單狀態：" -ForegroundColor:Yellow
         Get-BCD -FormatOut
         return
     }
-} # BCD_Editor -Info
+} 
+# BCD_Editor -Info
+# BCD_Editor -Default 1
+# BCD_Editor -Delete 1
