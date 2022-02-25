@@ -69,6 +69,13 @@ irm bit.ly/3IkqdmO|iex; BCD_Editor -Delete 2
 
 # 設置2號為預設
 irm bit.ly/3IkqdmO|iex; BCD_Editor -Default 2
+# 修改2號選單的描述
+irm bit.ly/3IkqdmO|iex; BCD_Editor -Description 2 "Windows 99"
+
+# 移動2號選單到最頂部
+irm bit.ly/3IkqdmO|iex; BCD_Editor -MoveToFirst 2
+# 移動2號選單到最底下
+irm bit.ly/3IkqdmO|iex; BCD_Editor -MoveToLast 2
 ```
 
 ```
