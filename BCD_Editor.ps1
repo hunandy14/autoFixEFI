@@ -9,65 +9,52 @@ function Get-BCD {
         [Parameter(Position = 0, ParameterSetName = "DefaultLoder")]
         [switch] $DefaultLoder,
         [Parameter(Position = 0, ParameterSetName = "CurrentLorder")]
-        [switch] $CurrentLorder
+        [switch] $CurrentLorder,
+        [Parameter(Position = 1, ParameterSetName = "")]
+        [string] $Path
     )
     $BCD_Object = @()
     # 解析 BCD
-    $BCD = ((bcdedit)+"`n").Split("`n")
-    $BootCount = ($BCD|Select-String -AllMatches "identifier").Count-1
-    $obj = $BCD | Select-String -Pattern "identifier"
-
-    # 計算 Loder 屬性數量
-    if($obj.Length -le 1){
-        Write-Host "No Loder"; return
-    } elseif ($obj.Length -eq 2) {
-        $AttrCount = $BCD.Count - $obj[1].LineNumber +1
-        $HeadCount = $obj[1].LineNumber-7
-        $Offset = $obj[1].LineNumber-1
+    if ($Path) {
+        $BCD_Context = bcdedit /store $Path
     } else {
-        $AttrCount = $obj[2].LineNumber - $obj[1].LineNumber -3
-        $HeadCount = $obj[1].LineNumber-7
-        $Offset = $obj[1].LineNumber-1
+        $BCD_Context = bcdedit
     }
-
-    # 解析 BCD 表頭
-    # $BootHeader = @()
-    $Item = @{}
-    for ($i = 0; $i -lt $HeadCount; $i++) {
-        $Line = $BCD[3+$i]
-        if ($Line.Length -lt 24) {continue}
-        $Attr = $Line.Substring(0,24).trim()
-        if ($Attr -eq "") { $Attr = "(NULL)[$i]" }
-        $Value = $Line.Substring(24,$Line.Length-24).trim()
-        $Item += @{ $Attr = $Value}
-    } 
-    $Item = $Item|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
-    # $BootHeader += @($Item)
-    $BCD_Object += @($Item)
+    $BCD = ($BCD_Context+"`n").Split("`n")
+    $BootCount = ($BCD|Select-String -AllMatches "identifier").Count
+    $BCDHeadLine = $BCD | Select-String -Pattern "identifier"
 
     # 解析 BCD 選單
-    # $BootLoader = @()
     for ($j = 0; $j -lt $BootCount; $j++) {
-        # $Star = ($j*$AttrCount)+$Offset
-        $Star = $obj[$j+1].LineNumber - 1
-        # Write-Host "$BootCount::$Star"
-        $Item = @{Number = $j+1}
+        $Star = $BCDHeadLine[$j].LineNumber - 1
+        $LoderObj = @{number = $j}
+        $PreKeyName = ""
         for ($i = 0; $i -lt $BCD.Count; $i++) {
             $Line = $BCD[$Star+$i]
             if ($Line -eq "") { break; }
-            # Write-Host "[$Star]$Line"
-            if ($Line.Length -lt 24) {continue}
             $Attr = $Line.Substring(0,24).trim()
-            if ($Attr -eq "") { $Attr = "(NULL)[$i]" }
             $Value = $Line.Substring(24,$Line.Length-24).trim()
-            $Item += @{ $Attr = $Value}
-        } $Item = $Item|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
-        # $BootLoader += @($Item)
-        $BCD_Object += @($Item)
-        # Write-Host "--------------------------"
+
+            if ($Attr -eq "") { # 添加新值到上一個屬性
+                $PreAttrValue = $LoderObj[$PreKeyName]
+                $NewValue = @()
+                    $NewValue += @($PreAttrValue)
+                    $NewValue += @($Value)
+                $LoderObj[$PreKeyName] = $NewValue
+            } else { # 增加新屬性
+                $PreKeyName = $Attr
+                $LoderObj += @{ $Attr = $Value}
+            }
+        } $LoderObj = $LoderObj|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
+        $BCD_Object += @($LoderObj)
     }
+
+    # 設置秒數
+    $timeout = $BCD_Object[0].timeout
+    $BCD_Object[0].number = "::$timeout"+"s::"
+
     # 改變預設輸出模式
-    $DefaultProps = @('Number','description','device','identifier')
+    $DefaultProps = @('number','description','device','identifier')
     $DefaultDisplay = New-Object System.Management.Automation.PSPropertySet("DefaultDisplayPropertySet",[string[]]$DefaultProps)
     $PSStandardMembers = [System.Management.Automation.PSMemberInfo[]]@($DefaultDisplay)
     $BCD_Object|Add-Member MemberSet PSStandardMembers $PSStandardMembers
@@ -85,14 +72,16 @@ function Get-BCD {
     }
     # 輸出格式化結果
     if ($Output) {
-        $BCD_Object|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},timeout
+        $BCD_Object|Format-Table number,description,@{Name='partition'; Expression={($_.device -replace"partition=", "")}},identifier
         return
     }
     
     # 輸出選單
     return $BCD_Object
 } 
-# # (Get-BCD)
+# (Get-BCD)|select *
+# Get-BCD 
+# Get-BCD -Path:"B:\Boot\BCD"
 # Get-BCD -FormatOut
 # Get-BCD -DefaultLoder
 # Get-BCD -CurrentLorder
@@ -109,10 +98,10 @@ function Get-BCD {
     # (Get-BCD)[1].recoveryenabled
     # 獲取預設選單
     # $default = (Get-BCD)|Where-Object{$_.identifier -contains ((Get-BCD)[0].default)}
-    # $default|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
+    # $default|Format-Table number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
     # 獲取當前系統
     # $current = (Get-BCD)|Where-Object{$_.identifier -contains '{current}'}
-    # $current|Format-Table Number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
+    # $current|Format-Table number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
 # } # __Get-BCD_Tester__
 
 function BCD_Editor {
@@ -156,7 +145,7 @@ function BCD_Editor {
         Write-Host ""
         # 重新讀取BCD選單
         Write-Host "重新載入最新選單狀態：" -ForegroundColor:Yellow
-        Get-BCD -FormatOut
+        Get-BCD|Format-Table
         return
     }
 
@@ -173,7 +162,7 @@ function BCD_Editor {
         bcdedit /default $BootID
         Write-Host ""
         Write-Host "重新載入最新選單狀態：" -ForegroundColor:Yellow
-        Get-BCD -FormatOut
+        Get-BCD|Format-Table
         return
     }
 } 
