@@ -40,6 +40,18 @@ function autoFixMBR {
             $Active|Set-Partition -IsActive $True
         }
     }
+
+    # 獲取Active磁碟代號
+    if(!$Active.DriveLetter){
+        $Active|Set-Partition -NewDriveLetter:$MBR_Letter;
+        $Active = $Dri|Get-Disk|Get-Partition|Where-Object{$_.IsActive}
+        if (!$Active.DriveLetter) {Write-Error "未知錯誤無法添加磁碟代號"}
+    } $MBR_Letter = $Active.DriveLetter
+
+    # 重建MBR開機引導
+    $cmd = "bcdboot $($DriveLetter):\windows /f BIOS /s $MBR_Letter`:\ /l zh-tw"
+    Write-Host $cmd
+    
     # 將引導寫入啟動磁區
     Write-Host "即將把" -NoNewline
     Write-Host " ($($DriveLetter):\windows) " -ForegroundColor:Yellow -NoNewline
@@ -51,19 +63,13 @@ function autoFixMBR {
         if (($response -ne "Y") -or ($response -ne "Y")) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
     }
 
-    # 獲取Active磁碟代號
-    if(!$Active.DriveLetter){
-        $Active|Set-Partition -NewDriveLetter:$MBR_Letter; $Active=$Active|Get-Partition;
-    } $MBR_Letter = $Active.DriveLetter
-
-    # 重建MBR開機引導
-    $cmd = "bcdboot $($DriveLetter):\windows /f BIOS /s $($MBR_Letter):\ /l zh-tw"
+    # 執行
     Invoke-Expression $cmd
 
     # 移除Active磁碟代號
     if ($DriveLetter -ne $Active.DriveLetter -and  $Active.DriveLetter -ne "C") {
-        $Active|Remove-PartitionAccessPath -AccessPath:"$($Active.DriveLetter)`:"
         $Active|Get-Volume|Set-Volume -NewFileSystemLabel "系統保留"
+        $Active|Remove-PartitionAccessPath -AccessPath:"$($Active.DriveLetter)`:"
     }
 
     # 確認最終結果
