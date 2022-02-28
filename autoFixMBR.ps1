@@ -60,14 +60,20 @@ function autoFixMBR {
     Write-Host " (磁碟:$($Active.DiskNumber), 分區:$($Active.PartitionNumber)) " -ForegroundColor:Yellow
     if (!$Force) {
         $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) "
-        if (($response -ne "Y") -or ($response -ne "Y")) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
+        if (($response -ne "Y") -or ($response -ne "Y")) {
+            Write-Host "使用者中斷" -ForegroundColor:Red
+            # 移除Active磁碟代號
+            if (($DriveLetter -ne $Active.DriveLetter) -and ($Active.DriveLetter -ne "C")) {
+                $Active|Remove-PartitionAccessPath -AccessPath:"$($Active.DriveLetter)`:"
+            } return
+        }
     }
 
     # 執行
     Invoke-Expression $cmd
 
     # 移除Active磁碟代號
-    if ($DriveLetter -ne $Active.DriveLetter -and  $Active.DriveLetter -ne "C") {
+    if (($DriveLetter -ne $Active.DriveLetter) -and ($Active.DriveLetter -ne "C")) {
         $Active|Get-Volume|Set-Volume -NewFileSystemLabel "系統保留"
         $Active|Remove-PartitionAccessPath -AccessPath:"$($Active.DriveLetter)`:"
     }
