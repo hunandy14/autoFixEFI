@@ -53,7 +53,7 @@ function autoFixEFI {
     }
     # 重建EFI開機引導
     $cmd = "bcdboot $($DriveLetter):\windows /f UEFI /s $($EFI_Letter):\ /l zh-tw"
-    Get-Partition($Dri.DiskNumber)|Format-Table PartitionNumber,DriveLetter,Size,Type
+    Get-Partition($Dri.DiskNumber)|Format-Table
     Write-Host $cmd
     
     # 修復EFI引導
