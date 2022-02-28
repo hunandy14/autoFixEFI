@@ -46,8 +46,18 @@ function autoFixEFI {
         $EFI = (($Dri|New-Partition -Size:($EfiSize) -GptType:$EFI_ID)|Format-Volume -FileSystem:FAT32 -Force)|Get-Partition
         
     }
+    
+    # 新增EFI磁碟代號
+    if(!$EFI.DriveLetter){
+        $EFI|Set-Partition -NewDriveLetter:$EFI_Letter
+        $EFI = $Partition|Where-Object{$_.GptType -eq $EFI_ID}
+    }
+    # 重建EFI開機引導
+    $cmd = "bcdboot $($DriveLetter):\windows /f UEFI /s $($EFI_Letter):\ /l zh-tw"
+    (Get-Partition -DiskNumber:$Dri.DiskNumber)|Format-Table
+    Write-Host $cmd
+    
     # 修復EFI引導
-    Get-Partition -DiskNumber:$Dri.DiskNumber | Out-Default 
     Write-Host ""
     Write-Host "即將把" -NoNewline
     Write-Host " ($($DriveLetter):\windows) " -ForegroundColor:Yellow -NoNewline
@@ -58,11 +68,10 @@ function autoFixEFI {
         $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) "
         if (($response -ne "Y") -or ($response -ne "Y")) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
     }
-    # 新增EFI磁碟代號
-    if(!$EFI.DriveLetter){ $EFI|Set-Partition -NewDriveLetter:$EFI_Letter; $EFI=$EFI|Get-Partition; }
-    # 重建EFI開機引導
-    $cmd = "bcdboot $($DriveLetter):\windows /f UEFI /s $($EFI_Letter):\ /l zh-tw"
+    
+    # 執行命令
     Invoke-Expression $cmd
+    
     # 移除EFI磁碟代號
     $EFI|Remove-PartitionAccessPath -AccessPath:"$($EFI.DriveLetter):"
 } # autoFixEFI -DriveLetter:C: -Force
