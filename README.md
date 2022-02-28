@@ -88,3 +88,14 @@ irm bit.ly/3IkqdmO|iex; Get-BCD -DefaultLoder
 # 查看當前系統
 irm bit.ly/3IkqdmO|iex; Get-BCD -CurrentLorder
 ```
+
+
+## 修復RE分區 (開進目標系統執行才有用)
+
+```
+reagentc /enable
+reagentc /disable
+reagentc /setreimage /path C:\windows\system32\recovery
+reagentc /enable
+reagentc /info
+```
