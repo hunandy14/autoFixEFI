@@ -15,8 +15,7 @@ function autoFixEFI {
     if (!$Dri) { Write-Host "錯誤::請輸入正確的磁碟代號"; return}
     if (($Dri|Get-Disk).PartitionStyle -ne "GPT") {
         Write-Host "錯誤::該分區的磁碟為 MBR 非 GPT 格式"; return }
-    $Partition = Get-Partition -DiskNumber:$Dri.DiskNumber
-    $EFI = $Partition|Where-Object{$_.GptType -eq $EFI_ID}
+    $EFI = Get-Partition($Dri.DiskNumber)|Where-Object{$_.GptType -eq $EFI_ID}
     # 沒有EFI分區則重新建立
     if (!$EFI) {
         Get-Partition -DiskNumber:$Dri.DiskNumber
@@ -50,23 +49,28 @@ function autoFixEFI {
     # 新增EFI磁碟代號
     if(!$EFI.DriveLetter){
         $EFI|Set-Partition -NewDriveLetter:$EFI_Letter
-        $EFI = $Partition|Where-Object{$_.GptType -eq $EFI_ID}
+        $EFI = Get-Partition($Dri.DiskNumber)|Where-Object{$_.GptType -eq $EFI_ID}
     }
     # 重建EFI開機引導
     $cmd = "bcdboot $($DriveLetter):\windows /f UEFI /s $($EFI_Letter):\ /l zh-tw"
-    (Get-Partition -DiskNumber:$Dri.DiskNumber)|Format-Table
+    Get-Partition($Dri.DiskNumber)|Format-Table PartitionNumber,DriveLetter,Size,Type
     Write-Host $cmd
     
     # 修復EFI引導
     Write-Host ""
     Write-Host "即將把" -NoNewline
-    Write-Host " ($($DriveLetter):\windows) " -ForegroundColor:Yellow -NoNewline
+    $DriName = ($Dri|Get-Volume).FileSystemLabel
+    Write-Host " $DriName($DriveLetter`:) " -ForegroundColor:Yellow -NoNewline
     Write-Host "的啟動引導, " -NoNewline
     Write-Host "寫入EFI分區" -NoNewline
     Write-Host " (磁碟:$($EFI.DiskNumber), 分區:$($EFI.PartitionNumber)) " -ForegroundColor:Yellow
     if (!$Force) {
         $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) "
-        if (($response -ne "Y") -or ($response -ne "Y")) { Write-Host "使用者中斷" -ForegroundColor:Red; return; }
+        if (($response -ne "Y") -or ($response -ne "Y")) {
+            Write-Host "使用者中斷" -ForegroundColor:Red
+            $EFI|Remove-PartitionAccessPath -AccessPath:"$($EFI.DriveLetter):"
+            return
+        }
     }
     
     # 執行命令
