@@ -2,16 +2,16 @@
 function Get-BCD {
     [CmdletBinding(DefaultParameterSetName = "_Default_")]
     param (
-        [Parameter(Position = 0, ParameterSetName = "_Default_")]
+        [Parameter(Position = 0, ParameterSetName = "")]
+        [string] $Path,
+        [Parameter(Position = 1, ParameterSetName = "_Default_")]
         [switch] $_Default_,
-        [Parameter(Position = 0, ParameterSetName = "FormatOut")]
+        [Parameter(Position = 1, ParameterSetName = "FormatOut")]
         [switch] $FormatOut,
-        [Parameter(Position = 0, ParameterSetName = "DefaultLoder")]
+        [Parameter(Position = 1, ParameterSetName = "DefaultLoder")]
         [switch] $DefaultLoder,
-        [Parameter(Position = 0, ParameterSetName = "CurrentLorder")]
-        [switch] $CurrentLorder,
-        [Parameter(Position = 1, ParameterSetName = "")]
-        [string] $Path
+        [Parameter(Position = 1, ParameterSetName = "CurrentLorder")]
+        [switch] $CurrentLorder
     )
     $BCD_Object = @()
     # 解析 BCD
@@ -78,7 +78,7 @@ function Get-BCD {
     
     # 輸出選單
     return $BCD_Object
-} 
+}
 # (Get-BCD)|select *
 # Get-BCD 
 # Get-BCD -Path:"B:\Boot\BCD"
