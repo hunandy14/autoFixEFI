@@ -38,7 +38,9 @@ function Install-DiskGenius {
 function MountBoot {
     param (
         [Parameter(Position = 0, ParameterSetName = "", Mandatory=$true)]
-        [string] $DriveLetter
+        [string] $DriveLetter,
+        [Parameter(Position = 1, ParameterSetName = "")]
+        [string] $BootLetter = "B"
     )
     $Dri=(Get-Partition -DriveLetter:$DriveLetter)
     if (!$Dri) { Write-Host "錯誤::請輸入正確的磁碟代號"; return}
@@ -47,7 +49,7 @@ function MountBoot {
     if ($Boot -eq "GPT") {
         $EFI = Get-Partition($Dri.DiskNumber)|Where-Object{$_.GptType -eq $EFI_ID}
         if(!$EFI.DriveLetter){
-            $EFI|Set-Partition -NewDriveLetter:$EFI_Letter
+            $EFI|Set-Partition -NewDriveLetter:$BootLetter
             $EFI = Get-Partition($Dri.DiskNumber)|Where-Object{$_.GptType -eq $EFI_ID}
             if (!$EFI.DriveLetter) {Write-Error "未知錯誤無法添加磁碟代號"}
         } $EFI_Letter = $EFI.DriveLetter
@@ -55,7 +57,7 @@ function MountBoot {
     } elseif ($Boot -eq "MBR") { 
         $Active = Get-Partition($Dri.DiskNumber)|Where-Object{$_.IsActive}
         if(!$Active.DriveLetter){
-            $Active|Set-Partition -NewDriveLetter:$MBR_Letter;
+            $Active|Set-Partition -NewDriveLetter:$BootLetter;
             $Active = Get-Partition($Dri.DiskNumber)|Where-Object{$_.IsActive}
             if (!$Active.DriveLetter) {Write-Error "未知錯誤無法添加磁碟代號"}
         } $MBR_Letter = $Active.DriveLetter

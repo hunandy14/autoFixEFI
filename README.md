@@ -58,6 +58,7 @@ irm bit.ly/3rk6Jrk|iex; CreateBootPartition
 
 ## 修改BCD選單
 ```
+
 # 查看當前開機選單
 irm bit.ly/3IkqdmO|iex; BCD_Editor -Info
 
@@ -87,6 +88,16 @@ irm bit.ly/3IkqdmO|iex; Get-BCD -DefaultLoder
 
 # 查看當前系統
 irm bit.ly/3IkqdmO|iex; Get-BCD -CurrentLorder
+```
+
+修改其他BCD文件
+
+```
+# 掛載啟動磁區
+irm bit.ly/340Pi6W|iex; MountBoot E
+
+# 查看其他BCD文件
+
 ```
 
 
