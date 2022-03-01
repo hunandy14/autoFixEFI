@@ -61,7 +61,7 @@ function MountBoot {
             $Active = Get-Partition($Dri.DiskNumber)|Where-Object{$_.IsActive}
             if (!$Active.DriveLetter) {Write-Error "未知錯誤無法添加磁碟代號"}
         } $MBR_Letter = $Active.DriveLetter
-        Write-Host "已載啟動磁區到 ($MBR_Letter`:\)"
+        Write-Host "已掛載啟動磁區到 ($MBR_Letter`:\)"
     } else {
         Write-Host "該磁碟沒有啟動分區"
     }
