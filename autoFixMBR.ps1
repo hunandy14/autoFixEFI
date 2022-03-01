@@ -15,7 +15,7 @@ function autoFixMBR {
     
     if (!$Dri) { Write-Host "錯誤::請輸入正確的 DriveLetter 磁碟代號"; return }
     if (($Dri | Get-Disk).PartitionStyle -ne "MBR") {
-        Write-Host "錯誤::該分區的磁碟為 MBR 非 GPT 格式"; return
+        Write-Host "錯誤::該分區的磁碟格式非 MBR 格式"; return
     }
 
     # 獲取啟動磁區位置
