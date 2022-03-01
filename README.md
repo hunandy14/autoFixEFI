@@ -93,11 +93,9 @@ irm bit.ly/3IkqdmO|iex; Get-BCD -CurrentLorder
 修改其他BCD文件
 
 ```
-# 掛載啟動磁區
+# 查看其他硬碟 E 曹的 BCD 文件
 irm bit.ly/340Pi6W|iex; MountBoot E
-
-# 查看其他BCD文件
-
+irm bit.ly/3IkqdmO|iex; Get-BCD -Path:B:\Boot\BCD -CurrentLorder
 ```
 
 

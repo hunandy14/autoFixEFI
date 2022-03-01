@@ -44,9 +44,13 @@ function MountBoot {
     )
     $Dri=(Get-Partition -DriveLetter:$DriveLetter)
     if (!$Dri) { Write-Host "錯誤::請輸入正確的磁碟代號"; return}
+    if ((Get-Partition -DriveLetter:$BootLetter)) {
+        Write-Error "啟動磁區代號 ($BootLetter`:\) 已經被占用"
+    }
     # 修復引導
     $Boot = ($Dri|Get-Disk).PartitionStyle
     if ($Boot -eq "GPT") {
+        $EFI_ID = "{c12a7328-f81f-11d2-ba4b-00a0c93ec93b}"
         $EFI = Get-Partition($Dri.DiskNumber)|Where-Object{$_.GptType -eq $EFI_ID}
         if(!$EFI.DriveLetter){
             $EFI|Set-Partition -NewDriveLetter:$BootLetter
