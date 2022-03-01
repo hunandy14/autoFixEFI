@@ -95,7 +95,7 @@ irm bit.ly/3IkqdmO|iex; Get-BCD -CurrentLorder
 ```
 # 查看其他硬碟 E 曹的 BCD 文件
 irm bit.ly/340Pi6W|iex; MountBoot E
-irm bit.ly/3IkqdmO|iex; Get-BCD -Path:B:\Boot\BCD -CurrentLorder
+irm bit.ly/3IkqdmO|iex; BCD_Editor -Path:B:\EFI\Microsoft\Boot\BCD -Info
 ```
 
 
