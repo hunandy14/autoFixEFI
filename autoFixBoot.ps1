@@ -34,3 +34,33 @@ function Install-DiskGenius {
         explorer "$AppPath\DiskGenius"
     } explorer "$AppPath\DiskGenius\DiskGenius.exe"
 }
+
+function MountBoot {
+    param (
+        [Parameter(Position = 0, ParameterSetName = "", Mandatory=$true)]
+        [string] $DriveLetter
+    )
+    $Dri=(Get-Partition -DriveLetter:$DriveLetter)
+    if (!$Dri) { Write-Host "錯誤::請輸入正確的磁碟代號"; return}
+    # 修復引導
+    $Boot = ($Dri|Get-Disk).PartitionStyle
+    if ($Boot -eq "GPT") {
+        $EFI = Get-Partition($Dri.DiskNumber)|Where-Object{$_.GptType -eq $EFI_ID}
+        if(!$EFI.DriveLetter){
+            $EFI|Set-Partition -NewDriveLetter:$EFI_Letter
+            $EFI = Get-Partition($Dri.DiskNumber)|Where-Object{$_.GptType -eq $EFI_ID}
+            if (!$EFI.DriveLetter) {Write-Error "未知錯誤無法添加磁碟代號"}
+        } $EFI_Letter = $EFI.DriveLetter
+        Write-Host "已掛載啟動磁區到 ($EFI_Letter`:\)"
+    } elseif ($Boot -eq "MBR") { 
+        $Active = Get-Partition($Dri.DiskNumber)|Where-Object{$_.IsActive}
+        if(!$Active.DriveLetter){
+            $Active|Set-Partition -NewDriveLetter:$MBR_Letter;
+            $Active = Get-Partition($Dri.DiskNumber)|Where-Object{$_.IsActive}
+            if (!$Active.DriveLetter) {Write-Error "未知錯誤無法添加磁碟代號"}
+        } $MBR_Letter = $Active.DriveLetter
+        Write-Host "已載啟動磁區到 ($MBR_Letter`:\)"
+    } else {
+        Write-Host "該磁碟沒有啟動分區"
+    }
+}
