@@ -50,7 +50,7 @@ function autoFixEFI {
     if(!$EFI.DriveLetter){
         $EFI|Set-Partition -NewDriveLetter:$EFI_Letter
         $EFI = Get-Partition($Dri.DiskNumber)|Where-Object{$_.GptType -eq $EFI_ID}
-    }
+    } $EFI_Letter = $EFI.DriveLetter
     # 重建EFI開機引導
     $cmd = "bcdboot $($DriveLetter):\windows /f UEFI /s $($EFI_Letter):\ /l zh-tw"
     Get-Partition($Dri.DiskNumber)|Format-Table
