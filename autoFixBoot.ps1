@@ -10,10 +10,10 @@ function autoFixBoot {
     # 修復引導
     $Boot = ($Dri|Get-Disk).PartitionStyle
     if ($Boot -eq "GPT") {
-        irm "https://raw.githubusercontent.com/hunandy14/autoFixEFI/master/autoFixEFI.ps1"|iex
+        Invoke-RestMethod "https://raw.githubusercontent.com/hunandy14/autoFixEFI/master/autoFixEFI.ps1"|Invoke-Expression
         autoFixEFI -DriveLetter:$DriveLetter -Force:$Force
     } elseif ($Boot -eq "MBR") { 
-        irm "https://raw.githubusercontent.com/hunandy14/autoFixEFI/master/autoFixMBR.ps1"|iex
+        Invoke-RestMethod "https://raw.githubusercontent.com/hunandy14/autoFixEFI/master/autoFixMBR.ps1"|Invoke-Expression
         autoFixMBR -DriveLetter:$DriveLetter -Force:$Force
     }
 } # autoFixBoot C
@@ -23,13 +23,13 @@ function Install-DiskGenius {
     param (
         [switch] $Force
     )
-    $RegjumpSite = "https://download.eassos.cn/DG5421239_x64.zip"
+    $Address = "https://download.eassos.cn/DG5421239_x64.zip"
     $FileName    = "DG5421239_x64.zip"
     $AppPath     = $([Environment]::GetFolderPath('Desktop'))
     $Download = !(Test-Path "$AppPath\DiskGenius\DiskGenius.exe")
     if ($Download -or $Force) {
-        Start-BitsTransfer $RegjumpSite "$env:TEMP\$FileName"
-        # Invoke-WebRequest $RegjumpSite -OutFile:$env:TEMP\$FileName
+        Start-BitsTransfer $Address "$env:TEMP\$FileName"
+        # Invoke-WebRequest $Address -OutFile:$env:TEMP\$FileName
         Expand-Archive "$env:TEMP\$FileName" $AppPath -Force
         explorer "$AppPath\DiskGenius"
     } explorer "$AppPath\DiskGenius\DiskGenius.exe"
