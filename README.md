@@ -6,7 +6,7 @@
 
 ## 自動修復開機引導 (EFI+MBR)
 ```
-irm bit.ly/340Pi6W|iex; autoFixBoot E
+irm autofixboot.github.io|iex; autoFixBoot E
 ```
 </br>
 
@@ -23,7 +23,7 @@ irm bit.ly/340Pi6W|iex; autoFixBoot E
 
 ## 安裝 DiskGenius
 ```
-irm bit.ly/340Pi6W|iex; Install-DiskGenius
+irm autofixboot.github.io|iex; Install-DiskGenius
 ```
 
 
@@ -94,7 +94,7 @@ irm bit.ly/3IkqdmO|iex; Get-BCD -CurrentLorder
 
 ```
 # 查看其他硬碟 E 曹的 BCD 文件
-irm bit.ly/340Pi6W|iex; MountBoot E
+irm autofixboot.github.io|iex; MountBoot E
 irm bit.ly/3IkqdmO|iex; BCD_Editor -Path:B:\EFI\Microsoft\Boot\BCD -Info
 ```
 
