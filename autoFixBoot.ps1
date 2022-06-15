@@ -5,7 +5,7 @@ function autoFixBoot {
         [string] $DriveLetter,
         [switch] $Force
     )
-    $Dri=(Get-Partition -DriveLetter:$DriveLetter)
+    $Dri = (Get-Partition -DriveLetter:$DriveLetter -ErrorAction:SilentlyContinue)
     if (!$Dri) { Write-Host "錯誤::請輸入正確的磁碟代號"; return}
     # 修復引導
     $Boot = ($Dri|Get-Disk).PartitionStyle
