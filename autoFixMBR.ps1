@@ -91,7 +91,7 @@ function CreateBootPartition {
         [switch] $Force
     )
     # 基本設定 
-    if (!$Size) { $Size = 100MB }
+    if (!$Size) { $Size = 300MB }
     if (!$DriveLetter) { $DriveLetter = "C" }
 
     # 搜尋啟動分區
@@ -140,5 +140,5 @@ function CreateBootPartition {
     $Active = (($Dri|New-Partition -Size:$Size)|Format-Volume)|Get-Partition
     $Active|Set-Partition -IsActive $True
     $Active|Get-Volume|Set-Volume -NewFileSystemLabel "系統保留"
-    autoFixMBR $DriveLetter -Force
+    autoFixMBR $DriveLetter
 } # CreateBootPartition -DriveLetter:D -Force
