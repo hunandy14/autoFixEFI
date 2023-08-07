@@ -22,7 +22,7 @@ function Get-BCD {
     } else {
         $BCD_Context = bcdedit
     }
-    $BCD = ($BCD_Context+"`n").Split("`n")
+    $BCD = ($BCD_Context+"`r`n").Split("`r`n")
     $BootCount = ($BCD|Select-String -AllMatches "identifier").Count
     $BCDHeadLine = $BCD | Select-String -Pattern "identifier"
 
@@ -85,24 +85,6 @@ function Get-BCD {
 # Get-BCD -FormatOut
 # Get-BCD -DefaultLoder
 # Get-BCD -CurrentLorder
-# return
-
-# 測試
-# function __Get-BCD_Tester__ {
-#     param (
-        # 
-#     )
-    # 直接輸出看結果
-    # Get-BCD
-    # 測試RE環境
-    # (Get-BCD)[1].recoveryenabled
-    # 獲取預設選單
-    # $default = (Get-BCD)|Where-Object{$_.identifier -contains ((Get-BCD)[0].default)}
-    # $default|Format-Table number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
-    # 獲取當前系統
-    # $current = (Get-BCD)|Where-Object{$_.identifier -contains '{current}'}
-    # $current|Format-Table number,description,@{Name='Letter'; Expression={$_.device -replace"partition=", ""}},resumeobject
-# } # __Get-BCD_Tester__
 
 function BCD_Editor {
     [CmdletBinding(DefaultParameterSetName = "Info")]
@@ -256,5 +238,3 @@ function BCD_Editor {
 # BCD_Editor -Path:"B:\Boot\BCD" -Description 2 "Windows 11"
 # BCD_Editor -Path:"B:\Boot\BCD" -MoveToFirst 2
 # BCD_Editor -Path:"B:\Boot\BCD" -MoveToLast 1
-
-# BCD_Editor -Path:"B:\Boot\BCD" -Info
