@@ -13,7 +13,9 @@ function Get-BCD {
         [Parameter(Position = 1, ParameterSetName = "CurrentLorder")]
         [switch] $CurrentLorder
     )
+    # BCD 物件
     $BCD_Object = @()
+
     # 解析 BCD
     if ($Path) {
         $BCD_Context = bcdedit /store $Path
@@ -27,26 +29,29 @@ function Get-BCD {
     # 解析 BCD 選單
     for ($j = 0; $j -lt $BootCount; $j++) {
         $Star = $BCDHeadLine[$j].LineNumber - 1
-        $LoderObj = @{number = $j}
-        $PreKeyName = ""
+        $PreKey = ""
+        $LoderObj = [ordered]@{
+            number = $j
+            title  = $BCD[($Star-2)]
+        }
         for ($i = 0; $i -lt $BCD.Count; $i++) {
             $Line = $BCD[$Star+$i]
-            if ($Line -eq "") { break; }
-            $Attr = $Line.Substring(0,24).trim()
-            $Value = $Line.Substring(24,$Line.Length-24).trim()
-
-            if ($Attr -eq "") { # 添加新值到上一個屬性
-                $PreAttrValue = $LoderObj[$PreKeyName]
-                $NewValue = @()
-                    $NewValue += @($PreAttrValue)
-                    $NewValue += @($Value)
-                $LoderObj[$PreKeyName] = $NewValue
-            } else { # 增加新屬性
-                $PreKeyName = $Attr
-                $LoderObj += @{ $Attr = $Value}
+            if (!$Line) {
+                break # 空行或Null結束該區塊
+            } else {
+                $offset = 24
+                $Attr   = $Line.Substring(0,$offset).trim()
+                $Value  = $Line.Substring($offset,$Line.Length-$offset).trim()
+                if ($Attr -eq "") { # 新值以陣列形式添加到前一個屬性
+                    $LoderObj[$PreKey] = $LoderObj[$PreKey], $Value
+                } else { # 增加新屬性與值
+                    $LoderObj += @{ $Attr = $Value }
+                    $PreKey = $Attr
+                }
             }
-        } $LoderObj = $LoderObj|ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru }
-        $BCD_Object += @($LoderObj)
+        }
+        # 轉換為 PsCustomObject
+        $BCD_Object += @($LoderObj | ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru })
     }
 
     # 設置秒數
@@ -57,30 +62,25 @@ function Get-BCD {
     $DefaultProps = @('number','description','device','identifier')
     $DefaultDisplay = New-Object System.Management.Automation.PSPropertySet("DefaultDisplayPropertySet",[string[]]$DefaultProps)
     $PSStandardMembers = [System.Management.Automation.PSMemberInfo[]]@($DefaultDisplay)
-    $BCD_Object|Add-Member MemberSet PSStandardMembers $PSStandardMembers
+    $BCD_Object | Add-Member MemberSet PSStandardMembers $PSStandardMembers
     
     # 格式化輸出終端機
-    $Output=$false
     if ($FormatOut) {
-        $Output=$true
-    } elseif ($DefaultLoder) {
-        $DstName = $BCD_Object[0].default
-        $BCD_Object = $BCD_Object|Where-Object{$_.identifier -contains $DstName}; $Output=$true
-    } elseif ($CurrentLorder) {
-        $DstName = '{current}'
-        $BCD_Object = $BCD_Object|Where-Object{$_.identifier -contains $DstName}; $Output=$true
-    }
-    # 輸出格式化結果
-    if ($Output) {
         $BCD_Object|Format-Table number,description,@{Name='partition'; Expression={($_.device -replace"partition=", "")}},identifier
         return
+    } elseif ($DefaultLoder) {
+        $DstName = $BCD_Object[0].default
+        $BCD_Object = $BCD_Object|Where-Object{$_.identifier -contains $DstName}
+    } elseif ($CurrentLorder) {
+        $DstName = '{current}'
+        $BCD_Object = $BCD_Object|Where-Object{$_.identifier -contains $DstName}
     }
-    
+
     # 輸出選單
     return $BCD_Object
 }
+# Get-BCD
 # (Get-BCD)|select *
-# Get-BCD 
 # Get-BCD -Path:"B:\Boot\BCD"
 # Get-BCD -FormatOut
 # Get-BCD -DefaultLoder
