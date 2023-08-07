@@ -30,7 +30,7 @@ function Get-BCD {
     for ($j = 0; $j -lt $BootCount; $j++) {
         $Star = $BCDHeadLine[$j].LineNumber - 1
         $PreKey = ""
-        $LoderObj = [ordered]@{
+        $LoderObj = [PSCustomObject]@{
             number = $j
             title  = $BCD[($Star-2)]
         }
@@ -43,15 +43,15 @@ function Get-BCD {
                 $Attr   = $Line.Substring(0,$offset).trim()
                 $Value  = $Line.Substring($offset,$Line.Length-$offset).trim()
                 if ($Attr -eq "") { # 新值以陣列形式添加到前一個屬性
-                    $LoderObj[$PreKey] = $LoderObj[$PreKey], $Value
+                    $LoderObj.$PreKey = ($LoderObj.$PreKey), $Value
                 } else { # 增加新屬性與值
-                    $LoderObj += @{ $Attr = $Value }
+                    $LoderObj | Add-Member -MemberType NoteProperty -Name $Attr -Value $Value
                     $PreKey = $Attr
                 }
             }
         }
         # 轉換為 PsCustomObject
-        $BCD_Object += @($LoderObj | ForEach-Object { New-Object object | Add-Member -NotePropertyMembers $_ -PassThru })
+        $BCD_Object += $LoderObj
     }
 
     # 設置秒數
