@@ -1,16 +1,102 @@
-# 獲取BCD物件
-function Get-BCD {
-    [CmdletBinding(DefaultParameterSetName = "_Default_")]
+# 獲取BCD物件 (新版)
+function Get-BootConfigurationData {
+    [Alias("Get-BcdItem")]
     param (
         [Parameter(Position = 0, ParameterSetName = "")]
         [string] $Path,
-        [Parameter(Position = 1, ParameterSetName = "_Default_")]
-        [switch] $_Default_,
-        [Parameter(Position = 1, ParameterSetName = "FormatOut")]
+        [Parameter(ParameterSetName = "")]
+        [switch] $Enum
+    )
+    # BCD物件清單
+    $BCD_List = @()
+    
+    # 使用 PowerShell 命令讀取當前的 BCD 並將其輸出保存到變數
+    if ($Path) {
+        [IO.Directory]::SetCurrentDirectory(((Get-Location -PSProvider FileSystem).ProviderPath))
+        $Path = [IO.Path]::GetFullPath($Path)
+        if (Test-Path -PathType Leaf $Path) {
+            $lines = bcdedit /store $Path
+        } else { Write-Error "找不到 '$Path' 路徑, 因為它不存在" -ErrorAction Stop; }
+    } else {
+        $lines = bcdedit /enum
+    }
+
+    # 找到 keyWord 的位置
+    $keyWord = "{bootmgr}"
+    $wordLine = & { foreach ($line in $lines) { if ($line -match [Regex]::Escape($keyWord)) { $line; break } } }
+    if(!$wordLine){
+        Write-Error (($lines -replace '^', '  ') -join "`r`n" + "`r`n")
+        Write-Error "命令 'bcdedit /enum' 沒有獲取到有效的 BCD 物件, 可能是權限不足導致" -ErrorAction Stop
+    }; $splitIndex = $wordLine.IndexOf($keyWord)
+
+    # 所需變數
+    $currentDict = New-Object PSObject
+    $blockStart = $false
+    $previousLine = ""
+
+    # 遍歷每一行
+    foreach ($line in $lines) {
+        # 如果該行僅包含 '-', 則開始新的區塊
+        if ($line -and ($line.Trim() -eq "-" * $line.Trim().Length)) {
+            # 如果當前字典有資料，則添加到最終列表中
+            if ($currentDict.PSObject.Properties.Name.Count -gt 0) {
+                $BCD_List += $currentDict
+            }
+    
+            # 開始新的字典並添加標題
+            $currentDict = New-Object PSObject
+            $currentDict | Add-Member -Type NoteProperty -Name "Title" -Value $previousLine.Trim()
+            $blockStart = $true
+            $previousLine = ""
+        }
+        # 如果當前正在處理區塊，則將當前行添加到字典
+        elseif ($blockStart -and $line.Trim()) {
+            $key = $line.Substring(0, $splitIndex).Trim()
+            $value = $line.Substring($splitIndex).Trim()
+            if ($key -eq "") {
+                $key = $previousLine.Substring(0, $splitIndex).Trim()
+                $currentDict.$key = @($currentDict.$key, $value)
+            } else {
+                $currentDict | Add-Member -Type NoteProperty -Name $key -Value $value
+            }
+        }
+        # 如果當前行為空，則結束區塊
+        elseif ($blockStart -and -not $line.Trim()) {
+            $blockStart = $false
+        }
+    
+        # 記錄上一行 (獲取區塊標題, 與檢查空白KEY捕到上一個判斷用)
+        $previousLine = $line
+    }
+    
+    # 將最後一個區塊添加到最終列表
+    if ($currentDict.PSObject.Properties.Name.Count -gt 0) {
+        $BCD_List += $currentDict
+    }
+    
+    # 添加 WindowsBootManager 到最終的結果
+    if (!$Enum) {
+        $WindowsBootManager = $BCD_List[0]
+        $WindowsBootManager | Add-Member -Type NoteProperty -Name "WindowsBootLoader" -Value ($BCD_List[1..$($BCD_List.Count - 1)])
+        return $WindowsBootManager
+    } else {  
+        return $BCD_List
+    }
+} # Get-BcdItem -Enum
+
+
+
+# 獲取BCD物件
+function Get-BCD {
+    [CmdletBinding(DefaultParameterSetName = "")]
+    param (
+        [Parameter(Position = 0, ParameterSetName = "")]
+        [string] $Path,
+        [Parameter(ParameterSetName = "")]
         [switch] $FormatOut,
-        [Parameter(Position = 1, ParameterSetName = "DefaultLoder")]
+        [Parameter(ParameterSetName = "")]
         [switch] $DefaultLoder,
-        [Parameter(Position = 1, ParameterSetName = "CurrentLorder")]
+        [Parameter(ParameterSetName = "")]
         [switch] $CurrentLorder
     )
     # BCD 物件
@@ -19,9 +105,7 @@ function Get-BCD {
     # 解析 BCD
     if ($Path) {
         $BCD_Context = bcdedit /store $Path
-    } else {
-        $BCD_Context = bcdedit
-    }
+    } else { $BCD_Context = bcdedit }
     $BCD = ($BCD_Context+"`r`n").Split("`r`n")
     $BootCount = ($BCD|Select-String -AllMatches "identifier").Count
     $BCDHeadLine = $BCD | Select-String -Pattern "identifier"
@@ -39,9 +123,10 @@ function Get-BCD {
             if (!$Line) {
                 break # 空行或Null結束該區塊
             } else {
-                $offset = 24
+                $offset = 24 # Key與Value區隔位置
                 $Attr   = $Line.Substring(0,$offset).trim()
                 $Value  = $Line.Substring($offset,$Line.Length-$offset).trim()
+                # 遇到空白Key表示是連著上一個Key陣列的屬性
                 if ($Attr -eq "") { # 新值以陣列形式添加到前一個屬性
                     $LoderObj.$PreKey = ($LoderObj.$PreKey), $Value
                 } else { # 增加新屬性與值
@@ -49,9 +134,7 @@ function Get-BCD {
                     $PreKey = $Attr
                 }
             }
-        }
-        # 轉換為 PsCustomObject
-        $BCD_Object += $LoderObj
+        } $BCD_Object += $LoderObj
     }
 
     # 設置秒數
@@ -85,6 +168,8 @@ function Get-BCD {
 # Get-BCD -FormatOut
 # Get-BCD -DefaultLoder
 # Get-BCD -CurrentLorder
+
+
 
 function BCD_Editor {
     [CmdletBinding(DefaultParameterSetName = "Info")]
