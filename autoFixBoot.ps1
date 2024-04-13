@@ -46,7 +46,7 @@ function MountBoot {
     $Dri=(Get-Partition -DriveLetter:$DriveLetter)
     if (!$Dri) { Write-Host "錯誤::請輸入正確的磁碟代號"; return}
     if ((Get-Partition -DriveLetter:$BootLetter -erroraction:'silentlycontinue')) {
-        Write-Error "啟動磁區代號 ($BootLetter`:\) 已經被占用"
+        Write-Error "啟動磁區代號 ($BootLetter`:\) 已經被占用" -EA Stop
     }
     # 修復引導
     $Boot = ($Dri|Get-Disk).PartitionStyle

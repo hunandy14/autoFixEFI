@@ -2,10 +2,12 @@ function autoFixEFI {
     param (
         [Parameter(Position = 0, ParameterSetName = "", Mandatory=$true)]
         [string] $DriveLetter,
-        [switch] $Force
+        [switch] $Force,
+        [string] $PartitionSize = 300MB,
+        [switch] $FormatPartition
     )
     # 基本設定
-    $EfiSize     = 300MB
+    $EfiSize     = $PartitionSize
     $response    = ""
     $DriveLetter = $DriveLetter.Trim(":|\")
     $EFI_ID      = "{c12a7328-f81f-11d2-ba4b-00a0c93ec93b}"
@@ -64,6 +66,8 @@ function autoFixEFI {
     Write-Host "的啟動引導, " -NoNewline
     Write-Host "寫入EFI分區" -NoNewline
     Write-Host " (磁碟:$($EFI.DiskNumber), 分區:$($EFI.PartitionNumber)) " -ForegroundColor:Yellow
+    if ($FormatPartition) { Write-Host "  備註: 由於啟用了 FormatPartition, 同意後會先格式化該EFI分區才將引導寫入。" -ForegroundColor:Yellow }
+    
     if (!$Force) {
         $response = Read-Host "  沒有異議或看不懂，請輸入Y (Y/N) "
         if (($response -ne "Y") -or ($response -ne "Y")) {
@@ -74,6 +78,11 @@ function autoFixEFI {
     }
     
     # 執行命令
+    if ($FormatPartition) {
+        try {
+            $EFI = (Format-Volume -DriveLetter $EFI_Letter -FileSystem:FAT32 -Force -EA Stop)|Get-Partition
+        } catch { Write-Error "錯誤:: 格式化失敗, 程式中斷" -EA Stop }
+    }
     Invoke-Expression $cmd
     
     # 移除EFI磁碟代號
